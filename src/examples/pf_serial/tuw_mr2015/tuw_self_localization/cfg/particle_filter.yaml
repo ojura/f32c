@@ -1,0 +1,41 @@
+mode: 0
+reinitialize: false
+initial_with_ground_truth: true
+plot_data: true
+
+particle_filter:
+  initial_distribution: 1
+  forward_prediction_time: 0
+  nr_of_samples: 100
+  resample_rate: 0.1
+  
+  enable_update: true
+  enable_weighting: true
+  enable_resample: true  
+  
+  nr_of_beams: 20
+  random_beams: true
+ 
+  sigma_init_position: 0.5
+  sigma_init_orientation: 0.39
+  sigma_static_position: 0.1
+  sigma_static_orientation: 0.2
+  
+  alpha1: 0.1
+  alpha2: 0.1
+  alpha3: 0.1
+  alpha4: 0.1
+  alpha5: 0.1
+  alpha6: 0.1
+  
+  sigma_hit: 0.5
+  z_hit: 0.7
+  z_short: 0.1
+  z_max: 0.5
+  z_rand: 0.4
+
+# Particle Filter arguments
+# cmd:=cmd_vel scan:=base_scan _plot_data:=true _mode:=0 _initial_with_ground_truth:=true _plot_data:=false _particle_filter/enable_random_beams:=true _particle_filter/enable_resample:=true _particle_filter/enable_weighting:=true _particle_filter/enable_update:=true  _map_image:="/home/mbader/projects/catkin/mr2015ws/src/tuw_mr2015/tuw_self_localization/maps/cave.png" _map_lines:="/home/mbader/projects/catkin/mr2015ws/src/tuw_mr2015/tuw_self_localization/maps/cave.yml"  
+
+# EKF arguments
+# cmd:=cmd_vel scan:=base_scan _plot_data:=true _mode:=1 _initial_with_ground_truth:=true _plot_data:=false _map_image:="/home/mbader/projects/catkin/mr2015ws/src/tuw_mr2015/tuw_self_localization/maps/cave.png" _map_lines:="/home/mbader/projects/catkin/mr2015ws/src/tuw_mr2015/tuw_self_localization/maps/cave.yml"
