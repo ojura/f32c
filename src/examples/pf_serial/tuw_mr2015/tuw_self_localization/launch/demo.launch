@@ -1,0 +1,10 @@
+<launch>
+  <group ns="robot_0">
+    <node pkg="mr2015ws00" type="mr" name="mr" output="screen">
+      <param name="mode" value="1" />
+      <remap from="base_scan" to="base_scan" />
+      <remap from="cmd" to="cmd_vel" />
+      <remap from="odom" to="odom" />
+    </node>
+  </group>
+</launch>

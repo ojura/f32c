@@ -1,0 +1,6 @@
+<launch>
+  <!-- loads the stage simulation -->
+  <arg name="world" default="cave" />
+  <node name="stage_ros" pkg="stage_ros" type="stageros" args="$(find tuw_stage)/worlds/$(arg world).world"/>
+
+</launch>

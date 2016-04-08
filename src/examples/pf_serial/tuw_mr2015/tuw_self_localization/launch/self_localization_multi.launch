@@ -1,0 +1,47 @@
+<launch>
+
+  <arg name="cfg" default="particle_filter" />
+  <arg name="map" default="cave" />
+  <group ns="robot_0">
+    <include file="$(find tuw_self_localization)/launch/self_localization.launch">
+      <arg name="cfg" default="$(arg cfg)" />
+      <arg name="map" default="$(arg map)" />
+    </include>
+  </group>
+  <group ns="robot_1">
+    <include file="$(find tuw_self_localization)/launch/self_localization.launch">
+      <arg name="cfg" default="$(arg cfg)" />
+      <arg name="map" default="$(arg map)" />
+    </include>
+  </group>
+  <group ns="robot_2">
+    <include file="$(find tuw_self_localization)/launch/self_localization.launch">
+      <arg name="cfg" default="$(arg cfg)" />
+      <arg name="map" default="$(arg map)" />
+    </include>
+  </group>
+  <group ns="robot_3">
+    <include file="$(find tuw_self_localization)/launch/self_localization.launch">
+      <arg name="cfg" default="$(arg cfg)" />
+      <arg name="map" default="$(arg map)" />
+    </include>
+  </group>
+  <group ns="robot_4">
+    <include file="$(find tuw_self_localization)/launch/self_localization.launch">
+      <arg name="cfg" default="$(arg cfg)" />
+      <arg name="map" default="$(arg map)" />
+    </include>
+  </group>
+  <group ns="robot_5">
+    <include file="$(find tuw_self_localization)/launch/self_localization.launch">
+      <arg name="cfg" default="$(arg cfg)" />
+      <arg name="map" default="$(arg map)" />
+    </include>
+  </group>
+  <group ns="robot_6">
+    <include file="$(find tuw_self_localization)/launch/self_localization.launch">
+      <arg name="cfg" default="$(arg cfg)" />
+      <arg name="map" default="$(arg map)" />
+    </include>
+  </group>
+</launch>
