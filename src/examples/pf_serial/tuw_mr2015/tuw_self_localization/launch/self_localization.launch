@@ -1,0 +1,12 @@
+<launch>
+  <arg name="cfg" default="particle_filter" />
+  <arg name="map" default="cave" />
+  <node pkg="tuw_self_localization" type="tuw_self_localization_node" name="self_localization" output="screen">
+    <rosparam file="$(find tuw_self_localization)/cfg/particle_filter.yaml" command="load"/>
+    <param name="map_image" value="$(find tuw_self_localization)/maps/$(arg map).png" />
+    <param name="map_lines" value="$(find tuw_self_localization)/maps/$(arg map).yml" />
+    <remap from="scan" to="base_scan" />
+    <remap from="cmd" to="cmd_vel" />
+    <remap from="odom" to="odom" />
+  </node>
+</launch>

@@ -1,0 +1,18 @@
+<launch>
+  <arg name="world" default="cave" />
+  <arg name="stage" default="0" />
+  <arg name="mode" default="0" />
+  <arg name="plot_data" default="true" />
+  <group if="$(arg stage)">
+    <include file="$(find tuw_stage)/launch/load_world.launch">
+      <arg name="world" default="$(arg world)" />
+    </include>
+  </group>
+  <node pkg="tuw_local_planner" type="tuw_local_planner_node" name="local_planner" output="screen">
+      <param name="mode" value="$(arg mode)" />
+      <param name="plot_data" value="$(arg plot_data)" />
+      <remap from="scan" to="base_scan" />
+      <remap from="cmd_vel" to="cmd_vel" />
+      <remap from="odom" to="odom" />
+  </node>
+</launch>
