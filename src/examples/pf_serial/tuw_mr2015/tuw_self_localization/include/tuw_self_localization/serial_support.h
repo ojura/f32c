@@ -1,0 +1,58 @@
+//
+// Created by juraj on 10.04.16..
+//
+
+#ifndef PROJECT_SERIAL_SUPPORT_H
+#define PROJECT_SERIAL_SUPPORT_H
+
+#include <iostream>
+#include <tuw_self_localization/fixedpoint.h>
+#include <tuw_self_localization/rs232.h>
+
+
+#define READTIMEOUT (100 * 1000)
+#define SENDTIMEOUT (100 * 5)
+
+extern int cport_nr;
+
+void sendInt(unsigned int p);
+int receiveInt();
+int receiveToken(const char *synctoken);
+void syncFPGA();
+bool initComport();
+unsigned char FPGAgetchar();
+void getFPGAmsg();
+
+template<class msg>
+void sendFPGAstruct(msg m);
+
+
+template<class msg>
+void sendFPGAstruct(msg m) {
+
+    int i;
+    for(i = 0; i < sizeof(m); i++ ) {
+        unsigned char c = *(((unsigned char *) &m) + i);
+        RS232_SendBuf(cport_nr, &c, 1);
+        //printf("Sent byte %d: %x \n", i, c);
+        usleep(SENDTIMEOUT);
+    }
+
+    printf("Sent %d chars\n", i);
+}
+
+
+
+//#include "/home/juraj/projects/catkin/mr2015ws/src/tuw_mr2015/tuw_self_localization/include/tuw_self_localization/com_structs.h"
+//#define member(t,x,y) t x;
+//struct {
+//    params;
+//} pars;
+//
+//#undef member
+//#define member(t,x,y) pars.x = y
+//params;
+//#undef member
+
+
+#endif //PROJECT_SERIAL_SUPPORT_H
