@@ -139,7 +139,7 @@ add_library(tuw_self_localization
               src/${PROJECT_NAME}/pose_filter.cpp
               src/${PROJECT_NAME}/particle_filter.cpp
               src/${PROJECT_NAME}/kalman_filter.cpp
-              src/${PROJECT_NAME}/rs232.c)
+              src/${PROJECT_NAME}/rs232.c src/tuw_self_localization/serial_support.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
