@@ -4,7 +4,7 @@
 #include <boost/math/distributions/normal.hpp> // for normal_distribution
 #include <random>
 #include <iostream>
-#include <cstdio>
+#include <fstream>
 #include <boost/range/irange.hpp>
 #include <boost/range/algorithm_ext/push_back.hpp>
 #include <algorithm>
@@ -12,21 +12,18 @@
 //#define USEFIXED
 #define USEFPGA
 
-#include <tuw_self_localization/fixedpoint.h>
+
 
 using namespace tuw;
 
-
-
 #ifdef USEFIXED
+#include <tuw_self_localization/fixedpoint.h>
 gaussian_random gauss_;
 #endif
 
-
-
-
 #ifdef USEFPGA
-#include <tuw_self_localization/rs232.h>
+#include <tuw_self_localization/serial_support.h>
+
 #endif
 
 std::random_device ParticleFilter::rd_;
@@ -68,163 +65,7 @@ void ParticleFilter::init ( ) {
     reset_ = false;
 }
 
-
-#ifdef USEFPGA
-int cport_nr;
-
-// serial helper functions
-void sendInt(unsigned int p) {
-
-    unsigned char *c =  (unsigned char *) &p;
-
-    //std::cout << "Sending " <<  (int) c[0]  << " "<< (int) c[1] << " " << (int) c[2] << " " << (int) c[3] << std::endl;
-    RS232_SendBuf(cport_nr,  (unsigned char *) &p, 4);
-}
-
-int receiveInt() {
-
-    unsigned char c[4];
-    int p = 0;
-
-    while(p < 4) {
-        p += RS232_PollComport(cport_nr, c+p, 4-p);
-        usleep(100 * 1000);
-        //cout << "waiting " << p << endl;
-    }
-
-    //std::cout <<  (int) c[0]  << " "<< (int) c[1] << " " << (int) c[2] << " " << (int) c[3] << std::endl;
-    return *((int *) c);
-}
-
-int receiveToken(const char *synctoken) {
-
-    //cout << "Beginning receiveToken()" << endl;
-    unsigned char c;
-    int p = 0;
-
-    while(p != 4) {
-
-        int tries = 10;
-        while(RS232_PollComport(cport_nr, &c, 1) < 1 && tries) {
-            usleep(100 * 1000);
-            tries--;
-        }
-
-        if(tries==0) return false;
-        //cout << "Received " <<  c << " p= " << p << endl;
-
-        if(synctoken[p] == c) p++;
-        else return false;
-    }
-
-    return true;
-}
-
-void syncFPGA() {
-    int synced = 0;
-
-    while(!synced) {
-        RS232_cputs(cport_nr, "sync");
-        synced=receiveToken("sack");
-    }
-
-}
-
-int comportinited = 0;
-void initComport() {
-    int bdrate = 115200;
-    char mode[] = {'8', 'N', '1', 0};
-
-    printf("init comport\n");
-    if (comportinited) RS232_CloseComport(cport_nr);
-    cport_nr = 16;
-    while (RS232_OpenComport(cport_nr, bdrate, mode)) {
-        printf("tried comport %d\n", cport_nr);
-        cport_nr++;
-
-        if (cport_nr == 20) exit(1);
-    }
-    comportinited = 1;
-    printf("comport inited on %d\n", cport_nr);
-}
-
-
-int FPGA_params_outofdate = 1;
-void ParticleFilter::sendFPGAparams() {
-
-    syncFPGA();
-
-    RS232_cputs(cport_nr, "pars");
-
-
-    struct {
-        bool enable_resample;
-        bool enable_weighting;
-        bool enable_update;
-        fixed alpha1;
-        fixed alpha2;
-        fixed alpha3;
-        fixed alpha4;
-        fixed alpha5;
-        fixed alpha6;
-        int nr_of_samples;
-        int nr_of_beams;
-    } pars;
-
-    #define setparam(x)  pars.x = config_.x
-
-    setparam(enable_resample);
-    setparam(enable_weighting);
-    setparam(enable_update);
-    setparam(alpha1);
-    setparam(alpha2);
-    setparam(alpha3);
-    setparam(alpha4);
-    setparam(alpha5);
-    setparam(alpha6);
-    setparam(nr_of_samples);
-    setparam(nr_of_beams);
-
-    #undef setparam
-
-    int i;
-    for(i = 0; i < sizeof(pars); i++ )
-        RS232_SendBuf(cport_nr, ((unsigned char *) &pars)+i , 1 );
-
-    printf("Sent %d chars\n", i);
-
-    FPGA_params_outofdate = 0;
-
-}
-unsigned char FPGAgetchar() {
-    unsigned char c;
-    while(RS232_PollComport(cport_nr, &c, 1) < 1)
-        usleep(100 * 1000);
-    return c;
-
-}
-
-void getFPGAmsg() {
-
-    unsigned char c;
-
-    int endc = 0;
-    const char endtoken[] = "!end!\n";
-        while(endc != strlen(endtoken)) {
-            c = FPGAgetchar();
-
-            if (c == endtoken[endc]) endc++;
-            else {
-                for (int i = 0; i < endc; i++)
-                    std::cout << endtoken[endc];
-                std::cout << c;
-            }
-        }
-
-}
-
-#endif
-
+#if defined USEFPGA || defined USEFIXED
 void convertSampleToFixed(const SamplePtr& s) {
     s->fx_ = s->x();
     s->fy_ = s->y();
@@ -238,13 +79,16 @@ void convertSampleToDouble(const SamplePtr& s) {
     s->theta() = s->ftheta_;
     s->weight() = s->fweight_;
 }
+#endif
 
 void ParticleFilter::initNormal () {
     for ( SamplePtr &s: samples ) {
         s = std::make_shared<Sample>();
         normal ( s, pose_init_, config_.sigma_init_position, config_.sigma_init_orientation );
 
+        #if defined USEFPGA || defined USEFIXED
         convertSampleToFixed(s);
+        #endif
     }
 }
 
@@ -253,7 +97,9 @@ void ParticleFilter::initUniform () {
         s = std::make_shared<Sample>();
         uniform ( s, uniform_distribution_x_, uniform_distribution_y_, uniform_distribution_theta_ );
 
+        #if defined USEFPGA || defined USEFIXED
         convertSampleToFixed(s);
+        #endif
     }
 }
 
@@ -278,8 +124,13 @@ void ParticleFilter::initGrid () {
                     samples[i] = std::make_shared<Sample>();
                     samples[i]->set ( x,y,theta );
                     samples[i]->idx() = i;
+
+                    #if defined USEFPGA || defined USEFIXED
                     convertSampleToFixed(samples[i]);
+                    #endif
+
                     i++;
+
                 } else {
                     std::cout << config_.nr_of_samples<< " : " << i;
                 }
@@ -359,14 +210,56 @@ void ParticleFilter::update ( const Command &u ) {
 }
 
 #ifdef USEFPGA
+
+#include <tuw_self_localization/com_structs.h>
+
+
+bool comportInited = false;
+bool FPGA_params_outofdate = true;
+likelihoodLookuptable currentlikelihoodLookuptable;
+
+
 Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPtr &z ) {
     if ( updateTimestamp ( z->stamp() ) ) {
 
-        if(!comportinited)
-            initComport();
+        if(!comportInited) {
+            if (initComport())
+                comportInited = true;
+        }
 
-        if(FPGA_params_outofdate)
-            sendFPGAparams();
+        if(FPGA_params_outofdate) {
+            #define member(t,x,y) msg_params.x = y
+            com_params;
+            #undef member
+
+            std::cout << "Awaiting sync for sending params " << std::endl;
+            syncFPGA();
+            std::cout << "Synced" << std::endl;
+
+            RS232_cputs(cport_nr, "pars");
+
+            std::cout << "Sent pars"  << std::endl;
+
+            sendFPGAstruct(msg_params);
+
+            FPGA_params_outofdate = false;
+        }
+
+        getFPGAmsg();
+
+        // frame data upload
+        syncFPGA();
+        std::cout << "Synced for data" << std::endl;
+
+        RS232_cputs(cport_nr, "data");
+
+        unsigned int total_beam_count = ( (const MeasurementLaserConstPtr&) z)->size();
+
+        #define member(t,x,y) msg_frame_data.x = y
+        com_frame_data;
+        #undef member
+
+        sendFPGAstruct(msg_frame_data);
 
         getFPGAmsg();
 
@@ -376,6 +269,9 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
         if ( config_.enable_update ) update ( u );
         if ( config_.enable_weighting ) weighting ( ( const MeasurementLaserConstPtr& ) z );
         pose_estimated_ = *samples[0];
+
+        std::cout << "Should die now" << std::endl;
+        exit(0);
     }
     return pose_estimated_;
 
@@ -482,8 +378,9 @@ void ParticleFilter::setConfig ( const void *config ) {
 
 
     #ifdef USEFPGA
-    FPGA_params_outofdate = 1;
+    FPGA_params_outofdate = true;
     std::cout << "setconfig callback" << std::endl;
+
     #endif
 
 }
@@ -542,16 +439,25 @@ void ParticleFilter::updateLikelihoodField () {
     cv::distanceTransform(map_, distance_field_pixel_, CV_DIST_L2,CV_DIST_MASK_PRECISE);
     distance_field_ =  distance_field_pixel_ / scale_;
 
+    #ifdef USEFPGA
+    for(int i = 0; i < 256; i++) {
+        currentlikelihoodLookuptable.gausspdf[i] = fixed(boost::math::pdf(normal_likelihood_field, i / scale_));
+    }
+    FPGA_params_outofdate = true;
+    #endif
 
+   // std::ofstream lmap("/home/juraj/lmap.map", std::ios::binary);
     for ( int r = 0; r < likelihood_field_.rows; r++ ) {
         for ( int c = 0; c < likelihood_field_.cols; c++ ) {
             float g =  distance_field_(r,c);
+            //std::cout << (int) distance_field_pixel_(r,c)  << std::endl;
             float f = boost::math::pdf(normal_likelihood_field, g);
             likelihood_field_(r,c) = f;
+            //char ff = distance_field_pixel_(r,c);
+
+            //lmap.write(&ff, sizeof(ff));
         }
     }
-
-
 }
 
 
@@ -732,7 +638,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
 	//s->weight()=std::exp(1.5*s->weight())-1;
         samples_weight_sum += s->weight();
 	
-	std::cout << "Weight: " << s->weight() << std::endl;
+	//std::cout << "Weight: " << s->weight() << std::endl;
     }
     
     /// sort and normalize particles weights
@@ -828,7 +734,6 @@ void ParticleFilter::resample () {
         samples = newsamples;
 
         escape: { };
-
 
     }
 
