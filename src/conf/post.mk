@@ -68,6 +68,7 @@ endif
 
 # Includes
 MK_INCLUDES += -I${BASE_DIR}include
+#MK_INCLUDES_CPP += -I${BASE_DIR}include/c++
 MK_STDINC = -nostdinc -include sys/param.h
 
 # Libs
@@ -180,9 +181,12 @@ MK_ARFLAGS = r
 
 # Discard .rel.dyn section which linker may emit in error with -gc-sections
 OBJFLAGS = -R .rel.dyn
+# Discard .MIPS.abiflags which makes binutils 2.25+ fail
+OBJFLAGS += -R .MIPS.abiflags
+
 
 CC = ${ARCH}-elf-gcc ${MK_CFLAGS} ${MK_STDINC} ${MK_INCLUDES}
-CXX = ${ARCH}-elf-g++ ${MK_CFLAGS} ${MK_CXXFLAGS} ${MK_STDINC} ${MK_INCLUDES} -fno-rtti -fno-exceptions
+CXX = ${ARCH}-elf-g++ ${MK_CFLAGS} ${MK_CXXFLAGS} ${MK_STDINC} ${MK_INCLUDES} ${MK_INCLUDES_CPP} -fno-rtti -fno-exceptions
 AS = ${ARCH}-elf-gcc ${MK_CFLAGS} ${MK_ASFLAGS} ${MK_INCLUDES}
 LD = ${ARCH}-elf-ld ${MK_LDFLAGS}
 AR = ${ARCH}-elf-ar ${MK_ARFLAGS}
