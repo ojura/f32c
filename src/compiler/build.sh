@@ -3,10 +3,11 @@
 set -e
 
 #MAKE=gmake -j4
-MAKE=make
+MAKE="make -j 8"
 
 # prefix to install tools in /usr/local/gnu_mips_f32c
-PREFIX=/usr/local/gnu_mips_f32c
+#PREFIX=/usr/local/gnu_mips_f32c
+PREFIX=~/gnu_mips_f32c
 
 MPC_ARCHIVE=$(ls mpc-*.tar.*)
 MPC_DIR=$(tar -tf $MPC_ARCHIVE | head -n 1)
@@ -50,14 +51,14 @@ fi
 if true
 then
  cd $BINUTILS_DIR
- patch -p0 < ../patches/binutils-2.23.1.diff
+ patch -p0 < ../patches/binutils-2.26.diff
  cd ..
 fi
 
 if true
 then
  cd $GCC_DIR
- patch -p0 < ../patches/gcc-4.8.4.diff
+ patch -p0 < ../patches/gcc-5.2.0.diff
  cd ..
 fi
 
@@ -70,6 +71,7 @@ then
             --disable-werror
  $MAKE
  # sudo $MAKE install
+ $MAKE install
  cd ..
 fi
 
@@ -82,6 +84,7 @@ then
 	    --disable-werror
 
  $MAKE
+ $MAKE install
  # sudo $MAKE install
  cd ..
 fi
