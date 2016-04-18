@@ -241,6 +241,8 @@ ${BIN}: ${PROG} Makefile
 	${ISA_CHECK} ${ARCH} ${PROG}
 	${OBJCOPY} ${OBJFLAGS} -O binary ${PROG} ${BIN}
 
+${OBJS}: ${HEADERS}
+
 ${PROG}: ${OBJS} Makefile
 	${LD} -o ${PROG} ${OBJS} ${MK_LIBS}
 
@@ -248,7 +250,7 @@ ${LIB}: ${OBJS} Makefile
 	${AR} ${LIBDIR}/lib${LIB}.a ${OBJS}
 
 depend:
-	${MKDEP} ${CFILES} > .depend
+	${MKDEP} ${CFILES} ${CXXFILES} > .depend
 
 clean:
 	rm -f ${OBJS} ${PROG} ${BIN} ${HEX}
