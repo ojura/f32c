@@ -38,6 +38,10 @@
 #ifndef _SYS_STAT_H_
 #define	_SYS_STAT_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <sys/cdefs.h>
 #include <sys/_timespec.h>
 #include <sys/_types.h>
@@ -330,5 +334,9 @@ int	mknodat(int, const char *, mode_t, dev_t);
 #endif
 __END_DECLS
 #endif /* !_KERNEL */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_SYS_STAT_H_ */
