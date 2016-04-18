@@ -13,14 +13,14 @@ struct fixed {
 
     fixed() : val(0) { };
     fixed(double a) : val( a*(1<<FIXED_FRACPART) ) { };
-    operator double() {
+    inline operator double() {
       return double(this->val) / (1 << FIXED_FRACPART);
     }
-    operator float() {
+    inline operator float() {
       return float(this->val) / (1 << FIXED_FRACPART);      
     }
     
-    fixed operator -() {
+    inline fixed operator -() {
      fixed r; r.val = -val; return r; 
     }
 
@@ -48,6 +48,16 @@ fixed inline operator+(const fixed &a, const fixed &b) {
 fixed inline operator-(const fixed &a, const fixed &b) {
     fixed r; r.val = a.val - b.val; return r;
 }
+
+bool inline operator<(const fixed &a, const fixed &b) {
+    return a.val < b.val;
+}
+
+bool inline operator>(const fixed &a, const fixed &b) {
+    return a.val > b.val;
+}
+
+
 
 #ifdef USEFIXED
 cv::Mat_<fixed> inline operator*(cv::Mat_<fixed> a, cv::Mat_<fixed> b) {
@@ -193,6 +203,13 @@ struct lfsr {
     void update() {
         int bit = ~((state >> 0) ^ (state >> 3)) & 1;
         state = ((state >> 1) & ~(1<<31))  | (bit << 31); }
+        
+    fixed generate() {
+        for (int j = 0; j < 32; j++)
+            update();
+        fixed r; r.val = state;           
+        return r;
+    }
 };
 
 struct gaussian_random{
