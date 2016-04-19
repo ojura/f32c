@@ -47,6 +47,12 @@ SamplePtr& ParticleFilter::uniform ( SamplePtr &sample, std::uniform_real_distri
     sample->set ( distribution_x ( generator_ ),  distribution_y ( generator_ ),  distribution_theta ( generator_ ) );
     return sample;
 }
+
+
+#ifdef USEFPGA
+#include <tuw_self_localization/serial_support.h>
+bool FPGA_samplesNeedUploading = true;
+#endif
 void ParticleFilter::init ( ) {
     samples.resize ( config_.nr_of_samples );
     switch ( config_.initial_distribution ) {
@@ -63,6 +69,7 @@ void ParticleFilter::init ( ) {
             initUniform();
     };
     reset_ = false;
+    FPGA_samplesNeedUploading = true;
 }
 
 #if defined USEFPGA || defined USEFIXED
@@ -222,6 +229,9 @@ likelihoodLookuptable currentlikelihoodLookuptable;
 Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPtr &z ) {
     if ( updateTimestamp ( z->stamp() ) ) {
 
+        updateLikelihoodField();
+        if ( reset_ ) init();
+
         if(!comportInited) {
             if (initComport())
                 comportInited = true;
@@ -242,10 +252,40 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 
             sendFPGAstruct(msg_params);
 
+            getFPGAmsg();
             FPGA_params_outofdate = false;
         }
 
-        getFPGAmsg();
+        if(FPGA_samplesNeedUploading) {
+
+            std::cout << "Awaiting sync for uploading initial samples " << std::endl;
+            syncFPGA();
+            std::cout << "Synced" << std::endl;
+
+            RS232_cputs(cport_nr, "usam");
+
+            std::cout << "Sent usam"  << std::endl;
+
+            msgtype_sample msg_sample;
+
+            for ( int i = 0; i < samples.size(); i++ ) {
+                const SamplePtr &s = samples[i];
+
+                #define member(t,x,y) msg_sample.x = y
+                com_sample;
+                #undef member
+
+                sendFPGAstruct(msg_sample);
+
+            }
+
+            std::cout << "Sent " << samples.size() << " samples." << std::endl;
+
+            getFPGAmsg();
+            FPGA_samplesNeedUploading = false;
+
+        }
+
 
         // frame data upload
         syncFPGA();
@@ -263,8 +303,6 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 
         getFPGAmsg();
 
-        updateLikelihoodField ();
-        if ( reset_ ) init();
         if ( config_.enable_resample ) resample();
         if ( config_.enable_update ) update ( u );
         if ( config_.enable_weighting ) weighting ( ( const MeasurementLaserConstPtr& ) z );
