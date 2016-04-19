@@ -11,7 +11,7 @@
 
 
 #define READTIMEOUT (100 * 1000)
-#define SENDTIMEOUT (100 * 5)
+#define SENDTIMEOUT (1)
 
 extern int cport_nr;
 
@@ -38,7 +38,10 @@ void sendFPGAstruct(msg m) {
         usleep(SENDTIMEOUT);
     }
 
-    printf("Sent %d chars\n", i);
+    //RS232_SendBuf(cport_nr, (unsigned char *) &m, sizeof(m));
+
+
+    //printf("Sent %d chars\n", i);
 }
 
 

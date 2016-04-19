@@ -6,17 +6,18 @@ extern "C" {
     #include <dev/io.h>
     #include <mips/io.h>
     #include <dev/sio.h>
-    #include <mips/_fpmath.h>
-    #include <stdarg.h>
+    #include <sys/fcntl.h>
     #include <string.h>
-    #include <fcntl.h>    
     #include <unistd.h>
+    #include <sys/param.h>
 }
 
+#include "sort_adapter.h"
 #include <fatfs/ff.h>
     
-    
 #include "tuw_mr2015/tuw_self_localization/include/tuw_self_localization/fixedpoint.h"
+
+gaussian_random gauss_;
 
 
 ////////////////
@@ -113,14 +114,96 @@ unsigned char& map(int c, int r) {
 }
 
 
-msgtype_sample *samples_mem;
+msgtype_sample *samples_mem, *samples_new_mem;
 unsigned int allocated_samples = 0;
+unsigned int used_samples = 0;
+lfsr uniform(864386345);
+
+void resample() {
+/**
+ * @ToDo Resample
+ * implement a resample weel
+ **/
+
+// M is the number the samples to destroy
+int M = double(msg_params.resample_rate * fixed(used_samples)), N = used_samples;
+#define MWEAKEST 0
+#define LOWVARIANCE 1
+
+if(msg_params.resample_strategy == MWEAKEST) {
+    
+    struct { bool operator()(const msgtype_sample &a, const msgtype_sample &b) { return a.weight < b.weight; } } cmp;
+    sort( samples_mem, samples_mem + used_samples, cmp);
+
+    fixed sigma_position = msg_params.sigma_static_position*msg_frame_data.duration_last_update;
+    fixed sigma_orientation = msg_params.sigma_static_orientation*msg_frame_data.duration_last_update;
+    
+    for(int i = 0, k = N - 1; i < MIN(M, N/2); i++, k--) {
+        // napravi kopiju...
+        //samples_mem[i] = samples_mem[k];
+        // i dodaj random
+        //normal ( samples[i], *samples[i], config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
+        
+        samples_mem[i].x = gauss_.generate(samples_mem[k].x, sigma_position);
+        samples_mem[i].y = gauss_.generate(samples_mem[k].y, sigma_position);
+        
+        samples_mem[i].theta = gauss_.generate(samples_mem[k].theta, sigma_orientation);
+
+    }
+} 
+
+
+else if(msg_params.resample_strategy == LOWVARIANCE) {
+    
+    // TODO
+    /*
+    // destroying M samples like in the first algorithm == sampling N-M samples
+    // M is now the number of samples to draw!
+    M = N-M;
+
+    double r = d(generator_) / M;
+    double c = samples[0]->weight();
+    int i = 0;
+    
+    for(int m = 0; m<M; m++) {
+        double U = r + m / (double) M;
+        
+        while(U>c) {
+            if(i == N-1) {
+                goto escape; // can't remember when I've last used goto :)
+            }
+            i++;
+            c += samples[i]->weight();
+        }
+        
+        newsamples.push_back(std::make_shared<Sample>(*samples[i]));
+        normal ( newsamples.back(), *newsamples.back(), config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
+    }
+    
+    samples = newsamples;
+    
+    escape: { };
+    */
+}
+
+/// update number of samples
+while ( allocated_samples > used_samples ) {
+    printf("TODO fill new samples\n");
+ /*   fixed p = uniform.generate() >> (32-FIXED_FRACPART);
+    size_t j = 0;
+    j = rand() % samples.size();
+    samples.push_back ( std::make_shared<Sample> ( *samples[j] ) );
+    SamplePtr &s  = samples.back();
+    normal ( s, *s, config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
+    */
+    } 
+}
 
 
 void main(void)
 {
     
-    sio_setbaud(1152000);
+    sio_setbaud(3000000);
     int f = open("d:likelihood.map", O_RDONLY);
     map_size = lseek(f, 0, SEEK_END);
         
@@ -171,11 +254,14 @@ void main(void)
             
             if(msg_params.nr_of_samples != allocated_samples) {
                 samples_mem = (msgtype_sample*) realloc(samples_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);
-                if(samples_mem == NULL)  {
+                samples_new_mem = (msgtype_sample*) realloc(samples_new_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);
+                if(samples_mem == NULL || samples_new_mem == NULL)  {
                     printf("Could not allocate memory for %d samples!\n", msg_params.nr_of_samples);
                     return;
                 }
                 else printf("Allocated %d samples.\n", msg_params.nr_of_samples);
+                
+                if(allocated_samples < used_samples) used_samples = allocated_samples;
             }
                 
                 printf("!end!\n");
@@ -197,8 +283,30 @@ void main(void)
             
         }  
         
+        else if(strcmp(ctmp, "usam") == 0) {
+            
+            printf("Receiving initial samples on FPGA...\n");
+            
+                    
+            for(unsigned int i = 0; i < msg_params.nr_of_samples; i++) {
+                readstruct(samples_mem[i]);
+            }
+            used_samples = msg_params.nr_of_samples;
+          
+            printf("Received data of the first sample: \n");
+            
+            #define member(t,x,y) printf(#t " " #x " = "); print(samples_mem[0].x); printf("\n")
+            com_sample;
+            #undef member
+            
+            printf("!end!\n");
+            
+        }  
+        
         else printf("\nSomething wrong, expected a message id, got %s!\n",ctmp);
-        continue; }
+         
+        
+    }
         
         
 }
