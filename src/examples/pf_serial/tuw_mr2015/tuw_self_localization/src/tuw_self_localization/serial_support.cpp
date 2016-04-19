@@ -68,7 +68,7 @@ void syncFPGA() {
 
 
 bool initComport() {
-    int bdrate = 1152000;
+    int bdrate = 3000000;
     char mode[] = {'8', 'N', '1', 0};
 
     printf("init comport\n");
