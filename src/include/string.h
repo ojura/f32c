@@ -32,6 +32,7 @@
 extern "C" {
 #endif
 
+char * strdup(const char *str);
 char *strstr(const char *, const char *) __pure;
 
 void *memchr(const void *, int, size_t) __pure;
