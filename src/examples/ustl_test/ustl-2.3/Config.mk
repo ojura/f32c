@@ -11,10 +11,10 @@ NOLIBSTDCPP	:= 1
 
 ################ Programs ############################################
 
-CXX		:= g++
-LD		:= g++
-AR		:= ar
-RANLIB		:= ranlib
+CXX		:= mips-elf-g++
+LD		:= mips-elf-ld
+AR		:= mips-elf-ar
+RANLIB		:= mips-elf-ranlib
 DOXYGEN		:= doxygen
 INSTALL		:= install
 
@@ -24,8 +24,8 @@ RMPATH		:= rmdir -p --ignore-fail-on-non-empty
 
 ################ Destination #########################################
 
-INCDIR		:= /usr/local/include
-LIBDIR		:= /usr/local/lib
+INCDIR		:= ../../../include
+LIBDIR		:= ../../../lib/mipsel
 
 ################ Compiler options ####################################
 
@@ -45,7 +45,7 @@ else
     LDFLAGS	+= -s -Wl,-gc-sections
 endif
 ifdef NOLIBSTDCPP
-    LD		:= /usr/bin/gcc
+    LD		:= mips-elf-gcc
     STAL_LIBS	:= -lsupc++
     LIBS	:= ${STAL_LIBS}
 endif

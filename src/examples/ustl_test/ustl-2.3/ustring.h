@@ -334,8 +334,9 @@ STRING_TO_INT_CONVERTER(stoi,int,strtol)
 STRING_TO_INT_CONVERTER(stol,long,strtol)
 STRING_TO_INT_CONVERTER(stoul,unsigned long,strtoul)
 #if HAVE_LONG_LONG
-STRING_TO_INT_CONVERTER(stoll,long long,strtoll)
-STRING_TO_INT_CONVERTER(stoull,unsigned long long,strtoull)
+// FIXME
+//STRING_TO_INT_CONVERTER(stoll,long long,strtoll)
+//STRING_TO_INT_CONVERTER(stoull,unsigned long long,strtoull)
 #endif
 #undef STRING_TO_INT_CONVERTER
 

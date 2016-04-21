@@ -5,28 +5,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
+void printVector_int(ustl::vector<int> &v) {
+    printf("[ ");
+    for(int i : v) {
+        printf("%d ", i);
+    }
+    printf("]\n");
+}
 
 int main() {
-	
-	printf("Hello!\n");
-	ustl::string test("Bok svima!");
+    
+    ustl::string test("Hello everyone!");
+    
+    ustl::vector<int> matr(4,0);
+    
+    //ustl::map<ustl::string, ustl::string> uloga;
+    //uloga["marko"] = "tata";
+    //uloga["ivan"] = "brat";
+    //uloga["vinko"] = "ujak";
+    
+    
+    matr[0] = 3; matr[1] = 4; matr[2] = 1; matr[3] = 2;
+    printf("%s Size: %d Contents: ", test.c_str(), matr.size()); printVector_int(matr);
+    
+    struct cmp {int operator()(int a, int b) { return a < b; } };
+    ustl::sort(matr.begin(), matr.end(), cmp());
+    
+    printf("%s Sorted: Size: %d Contents: ", test.c_str(), matr.size()); printVector_int(matr);
+    
+    matr.push_back(157);
+    printf("%s push_back(157): Size: %d Contents: ", test.c_str(), matr.size());  printVector_int(matr);
+    
+    while(1) { };
 
-	ustl::vector<int> matr(4,0);
-
-	ustl::map<ustl::string, ustl::string> uloga;
-
-	uloga["marko"] = "tata";
-	uloga["ivan"] = "brat";
-	uloga["vinko"] = "ujak";
-
-	matr[0] = 4; matr[1] = 3; matr[2] = 2; matr[3] = 1;
-	matr.push_back(74);
-		
-	struct cmp {int operator()(int a, int b) { return a < b; } };
-	//ustl::sort(matr.begin(), matr.end(), cmp());
-
-	printf("Hi! %s Size:  %d, %d %d %d %d %d\n", test.c_str(), matr.size(), matr[0], matr[1], matr[2],matr[3],matr[4]);
-	
-	while(1) { };
 }
