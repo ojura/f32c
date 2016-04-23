@@ -28,7 +28,7 @@ void sendFPGAstruct(msg m);
 
 
 template<class msg>
-void sendFPGAstruct(msg m) {
+inline void sendFPGAstruct(msg m) {
 
     int i;
     for(i = 0; i < sizeof(m); i++ ) {
@@ -43,6 +43,16 @@ void sendFPGAstruct(msg m) {
 
     //printf("Sent %d chars\n", i);
 }
+
+inline void sendFPGAstring(const char *m) {
+
+
+    while(*m != '\0') {
+        RS232_SendBuf(cport_nr, (const unsigned char *) m++, 1);
+        usleep(SENDTIMEOUT);
+    }
+}
+
 
 
 

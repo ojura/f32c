@@ -4,7 +4,6 @@
 #include <memory>
 #include <boost/math/distributions/normal.hpp> // for normal_distribution
 #include <tuw_self_localization/sample.h>
-#include <tuw_self_localization/fixedpoint.h>
 #include <tuw_self_localization/pose_filter.h>
 #include <tuw_geometry/tuw_geometry.h>
 #include <tuw_self_localization/ParticleFilterConfig.h>
@@ -67,7 +66,10 @@ private:
     double scale_;         /// map scale
     cv::Matx33d tf_;       /// transformation into the map
     //cv::Mat_<fixed> ftf_; // fixed point version
-    fixed ftf[3][3];
+
+    #if defined(USEFPGA) || defined(USEFIXED)
+    fixed33mat ftf_;
+    #endif
 
     double samples_weight_max_;  /// highest normalized weight of a sample
     static std::random_device rd_;  /// random number device
@@ -77,7 +79,13 @@ private:
     static std::uniform_real_distribution<double> uniform_distribution_theta_;  /// uniform distribution used for generate a random angle
     static std::normal_distribution<double> normal_distribution_;               /// normal distribution for generic use  
     double sigma_likelihood_field_;                                             /// sigma value used for the likelihood field
-    
+
+    #ifdef USEFPGA
+    double zhit_likelihood_field_;
+    double zrand_likelihood_field_;
+    double zmax_likelihood_field_;
+    #endif
+
     /**
      * generates a the likelihood field
      **/
