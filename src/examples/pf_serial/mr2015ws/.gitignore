@@ -1,0 +1,5 @@
+/build/
+/devel/
+/src/.idea
+/src/CMakeLists.txt
+/.catkin_workspace
