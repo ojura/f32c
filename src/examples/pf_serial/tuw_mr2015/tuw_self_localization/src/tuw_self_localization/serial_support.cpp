@@ -60,7 +60,7 @@ void syncFPGA() {
 
     while(!synced) {
         RS232_flushRXTX(cport_nr);
-        RS232_cputs(cport_nr, "sync");
+        sendFPGAstring("sync");
         synced=receiveToken("sack");
     }
 

@@ -165,7 +165,7 @@ void SelfLocalizationNode::callbackLaser ( const sensor_msgs::LaserScan &_laser 
        }
     
     
-    double yaw,pitch,roll;
+    double yaw, pitch, roll;
     tf::Matrix3x3(transform.getRotation()).getEulerYPR(yaw,pitch,roll);
     
     //printf("%f %f %lf\n", transform.getOrigin().x(), transform.getOrigin().y(), yaw);

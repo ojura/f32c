@@ -1,3 +1,5 @@
+#define USEFIXED
+#define USEFPGA
 #include <tuw_self_localization/particle_filter.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -9,8 +11,6 @@
 #include <boost/range/algorithm_ext/push_back.hpp>
 #include <algorithm>
 
-//#define USEFIXED
-#define USEFPGA
 
 
 
@@ -23,7 +23,6 @@ gaussian_random gauss_;
 
 #ifdef USEFPGA
 #include <tuw_self_localization/serial_support.h>
-
 #endif
 
 std::random_device ParticleFilter::rd_;
@@ -69,22 +68,24 @@ void ParticleFilter::init ( ) {
             initUniform();
     };
     reset_ = false;
+    #ifdef USEFPGA
     FPGA_samplesNeedUploading = true;
+    #endif
 }
 
 #if defined USEFPGA || defined USEFIXED
 void convertSampleToFixed(const SamplePtr& s) {
-    s->fx_ = s->x();
-    s->fy_ = s->y();
-    s->ftheta_ = s->theta();
-    s->fweight_ = s->weight();
+    s->fx_ = fixed(s->x());
+    s->fy_ = fixed(s->y());
+    s->ftheta_ = fixed(s->theta());
+    s->fweight_ = fixed(s->weight());
 }
 
 void convertSampleToDouble(const SamplePtr& s) {
-    s->x() = s->fx_;
-    s->y() = s->fy_;
-    s->theta() = s->ftheta_;
-    s->weight() = s->fweight_;
+    s->x() = double(s->fx_);
+    s->y() = double(s->fy_);
+    s->theta() = double(s->ftheta_);
+    s->weight() = double(s->fweight_);
 }
 #endif
 
@@ -155,7 +156,7 @@ void ParticleFilter::update ( const Command &u ) {
 
 #ifdef USEFIXED
 
-    fixed fdt = dt;
+    fixed fdt = fixed(dt);
     for ( SamplePtr s : samples ) {
         /**
         * @ToDo MotionModel
@@ -168,9 +169,9 @@ void ParticleFilter::update ( const Command &u ) {
 
         fixed fv_w = fixed(v/w);
 
-        fixed fv = gauss_.generate(v, config_.alpha1*v*v + config_.alpha2*w*w);
-        fixed fw = gauss_.generate(w, config_.alpha3*v*v + config_.alpha4*w*w);
-        fixed fgamma = gauss_.generate(0, config_.alpha5*v*v + config_.alpha6*w*w);
+        fixed fv = gauss_.generate(fixed(v), fixed(config_.alpha1*v*v + config_.alpha2*w*w));
+        fixed fw = gauss_.generate(fixed(w), fixed(config_.alpha3*v*v + config_.alpha4*w*w));
+        fixed fgamma = gauss_.generate(fixed(0), fixed(config_.alpha5*v*v + config_.alpha6*w*w));
 
 
 
@@ -229,7 +230,6 @@ likelihoodLookuptable currentlikelihoodLookuptable;
 Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPtr &z ) {
     if ( updateTimestamp ( z->stamp() ) ) {
 
-        updateLikelihoodField();
         if ( reset_ ) init();
 
         if(!comportInited) {
@@ -246,7 +246,7 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
             syncFPGA();
             std::cout << "Synced" << std::endl;
 
-            RS232_cputs(cport_nr, "pars");
+            sendFPGAstring("pars");
 
             std::cout << "Sent pars"  << std::endl;
 
@@ -262,7 +262,7 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
             syncFPGA();
             std::cout << "Synced" << std::endl;
 
-            RS232_cputs(cport_nr, "usam");
+            sendFPGAstring("usam");
 
             std::cout << "Sent usam"  << std::endl;
 
@@ -286,14 +286,16 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 
         }
 
-
         // frame data upload
         syncFPGA();
         std::cout << "Synced for data" << std::endl;
 
-        RS232_cputs(cport_nr, "data");
+        sendFPGAstring("data");
 
         unsigned int total_beam_count = ( (const MeasurementLaserConstPtr&) z)->size();
+
+        fixed33mat ztf;
+        toFixed33Arr(( (const MeasurementLaserConstPtr&) z)->tf(), ztf.mat);
 
         #define member(t,x,y) msg_frame_data.x = y
         com_frame_data;
@@ -303,10 +305,23 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 
         getFPGAmsg();
 
-        if ( config_.enable_resample ) resample();
-        if ( config_.enable_update ) update ( u );
-        if ( config_.enable_weighting ) weighting ( ( const MeasurementLaserConstPtr& ) z );
-        pose_estimated_ = *samples[0];
+        msgtype_measurement msg_measurement;
+        for(unsigned int i = 0; i < total_beam_count; i++ ) {
+            const MeasurementLaser::Beam &beam = ((const MeasurementLaserConstPtr&) z)->operator[] ( i );
+
+            #define member(t,x,y) msg_measurement.x = y
+            com_measurement
+            #undef member
+
+            sendFPGAstruct(msg_measurement);
+        }
+
+        getFPGAmsg();
+
+        //if ( config_.enable_resample ) resample();
+        //if ( config_.enable_update ) update ( u );
+        //if ( config_.enable_weighting ) weighting ( ( const MeasurementLaserConstPtr& ) z );
+        //pose_estimated_ = *samples[0];
 
         std::cout << "Should die now" << std::endl;
         exit(0);
@@ -413,7 +428,7 @@ void ParticleFilter::plotData ( Figure &figure_map ) {
 
 void ParticleFilter::setConfig ( const void *config ) {
     config_ = * ( ( tuw_self_localization::ParticleFilterConfig* ) config );
-
+    updateLikelihoodField();
 
     #ifdef USEFPGA
     FPGA_params_outofdate = true;
@@ -446,8 +461,8 @@ void ParticleFilter::loadMap ( int width_pixel, int height_pixel, double min_x, 
     cv::Matx<double, 3, 3 > Tm ( 1, 0, ox, 0, 1, oy, 0, 0, 1 ); // translation
     tf_ = Tm * R * Sp * Sc * Tw;
 
-#ifdef USEFIXED
-    toFixedArr(tf_, ftf);
+#if defined(USEFIXED) || defined(USEFPGA)
+    toFixed33Arr(tf_, ftf_.mat);
 #endif
 
 
@@ -464,11 +479,36 @@ void ParticleFilter::loadMap ( int width_pixel, int height_pixel, double min_x, 
     updateLikelihoodField ();
 
 }
+
+
 void ParticleFilter::updateLikelihoodField () {
+
+    #ifdef USEFPGA
+    if (zhit_likelihood_field_ == config_.z_hit &&
+            zmax_likelihood_field_ == config_.z_max &&
+            zrand_likelihood_field_ == config_.z_rand &&
+            sigma_likelihood_field_ == config_.sigma_hit) return;
+    else {
+        // bake as much particle weight calculations into static likelihood map for use on FPGA
+        boost::math::normal normal_likelihood_field = boost::math::normal ( 0, config_.sigma_hit );
+        for(int i = 0; i < 256; i++)
+            currentlikelihoodLookuptable.gausspdf[i] = fixed(boost::math::pdf(normal_likelihood_field, i / scale_)
+                                                             * config_.z_hit + config_.z_rand/config_.z_max);
+        FPGA_params_outofdate = true;
+
+        zhit_likelihood_field_ = config_.z_hit;
+        zmax_likelihood_field_ = config_.z_max;
+        zrand_likelihood_field_ = config_.z_rand;
+    }
+    #endif
+
 
     if ( sigma_likelihood_field_ == config_.sigma_hit ) return;
     sigma_likelihood_field_ = config_.sigma_hit;
     boost::math::normal normal_likelihood_field = boost::math::normal ( 0, config_.sigma_hit );
+
+
+
 
     /**
     * @ToDo SensorModel
@@ -476,13 +516,6 @@ void ParticleFilter::updateLikelihoodField () {
     **/
     cv::distanceTransform(map_, distance_field_pixel_, CV_DIST_L2,CV_DIST_MASK_PRECISE);
     distance_field_ =  distance_field_pixel_ / scale_;
-
-    #ifdef USEFPGA
-    for(int i = 0; i < 256; i++) {
-        currentlikelihoodLookuptable.gausspdf[i] = fixed(boost::math::pdf(normal_likelihood_field, i / scale_));
-    }
-    FPGA_params_outofdate = true;
-    #endif
 
    // std::ofstream lmap("/home/juraj/lmap.map", std::ios::binary);
     for ( int r = 0; r < likelihood_field_.rows; r++ ) {
@@ -529,7 +562,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
         **/
         int spacing = z->size() / config_.nr_of_beams;
 
-        int i = 0; int c = 0;
+        int i = spacing / 2; int c = 0;
         while(c < config_.nr_of_beams) {
             used_beams.push_back(i);
             i += spacing; c++;
@@ -545,7 +578,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
         * @ToDo SensorModel
         * compute the weight for each particle
         **/
-        s->fweight_ = 1.;
+        s->fweight_ = fixed(1);
 
         for(size_t k : used_beams) {
             const MeasurementLaser::Beam &beam = z->operator[] ( k );
@@ -564,7 +597,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
                 fend_point(1,0) = end_point.y();
                 fend_point(2,0) = 1.; */
 
-                fixed x = end_point.x(), y = end_point.y();
+                fixed x = fixed(end_point.x()), y = fixed(end_point.y());
 
                 //std::cout << "Testiranje kompilacije" << std::endl;
 
@@ -576,7 +609,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
 
                 // matrica transformacije za sample
                 stf[0][0] = c_; stf[0][1] = -s_; stf[0][2] = s->fx_; stf[1][0] = s_; stf[1][1] = c_; stf[1][2] = s->fy_;
-                stf[2][0] = 0.; stf[2][1] = 0.; stf[2][2] = 1.;
+                stf[2][0] = fixed(0); stf[2][1] = fixed(0); stf[2][2] = fixed(1);
 
                 cv::Mat_<fixed> ztf_ = toFixedMat(z->tf());
 
@@ -593,8 +626,10 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
 
                 //fend_point = ftf_ *  stf * ztf * fend_point;
 
+                //auto &ftfa = ftf;
                 //std::cout << std::endl << "Endpoint "; printMat(fend_point);
 
+                auto &ftf = ftf_.mat;
                 int rx = int(ftf[0][2] + ftf[0][0]*stf[0][2] + ftf[0][1]*stf[1][2] + x*(ztf[0][0]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][0]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][1]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + ztf[0][2]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][2]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1]));
                 int ry = int(ftf[1][2] + ftf[1][0]*stf[0][2] + ftf[1][1]*stf[1][2] + x*(ztf[0][0]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][0]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][1]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + ztf[0][2]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][2]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1]));
 
@@ -603,7 +638,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
                     s->fweight_ = s->fweight_ * fixed(likelihood_field_(ry, rx) * config_.z_hit + config_.z_rand/config_.z_max);
 
                 else { //std::cout << "izletio ";
-                    s->fweight_ = 0; }
+                    s->fweight_ = fixed(0); }
             }
 
 
@@ -613,7 +648,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
         //s->weight()=std::exp(1.5*s->weight())-1;
         //samples_weight_sum += s->weight();
         convertSampleToDouble(s);
-        std::cout << "Weight: " << s->fweight_ << std::endl;
+        std::cout << "Weight: " << double(s->fweight_) << std::endl;
     }
 
     struct cmp_sample { bool operator() (SamplePtr a, SamplePtr b) { return a->fweight_.val > b->fweight_.val; } };
@@ -694,9 +729,18 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
 
 }
 
+#ifdef USEFIXED
+inline void newNormalSample(SamplePtr &target, const SamplePtr &src, const fixed &sigma_position, const fixed &sigma_orientation) {
+    target->fx_ = gauss_.generate(src->fx_, sigma_position);
+    target->fy_ = gauss_.generate(src->fy_, sigma_position);
+    target->ftheta_ = gauss_.generate(src->ftheta_, sigma_orientation);
+}
+#endif
+
+
 void ParticleFilter::resample () {
     double dt = duration_last_update_.total_microseconds() /1000000.;
-    double fdt = dt;
+    fixed fdt = fixed(dt);
     std::uniform_real_distribution<double> d ( 0,1 );
     std::uniform_int_distribution<size_t>  uniform_idx_des ( 0,samples.size()-1 );
     /**
@@ -717,14 +761,15 @@ void ParticleFilter::resample () {
 
         for(int i = 0, k = N - 1; i < std::min(M, N/2); i++, k--) {
             // napravi kopiju...
-            samples[i] = std::make_shared<Sample> ( *samples[k] );
+            //samples[i] = std::make_shared<Sample> ( *samples[k] );
             // i dodaj random
             //normal ( samples[i], *samples[i], config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
 
-            samples[i]->fx_ = gauss_.generate(samples[k]->fx_, config_.sigma_static_position*dt);
-            samples[i]->fy_ = gauss_.generate(samples[k]->fy_, config_.sigma_static_position*dt);
+            newNormalSample(samples[i], samples[k], fixed(config_.sigma_static_position*dt), fixed(config_.sigma_static_orientation*dt));
+            //samples[i]->fx_ = gauss_.generate(samples[k]->fx_, fixed(config_.sigma_static_position*dt));
+            //samples[i]->fy_ = gauss_.generate(samples[k]->fy_, fixed(config_.sigma_static_position*dt));
 
-            samples[i]->ftheta_ = gauss_.generate(samples[k]->ftheta_, config_.sigma_static_orientation*dt);
+            //samples[i]->ftheta_ = gauss_.generate(samples[k]->ftheta_, fixed(config_.sigma_static_orientation*dt));
 
             // update double vrijednosti
             convertSampleToDouble(samples[i]);
