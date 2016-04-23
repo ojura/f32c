@@ -4,7 +4,6 @@
 #define FIXED_INTPART 12
 #include <math.h>
 
-
 #ifdef USEFIXED
 #include <opencv2/opencv.hpp>
 #endif
@@ -58,6 +57,10 @@ struct fixed {
     
 };
 
+struct fixed33mat {
+    fixed mat[3][3];
+};
+
 // multiply two fixed
 fixed inline operator*(const fixed &a, const fixed &b) {
     fixed r; r.val = ( (long long) a.val* (long long) b.val) >> FIXED_FRACPART; return r;
@@ -103,7 +106,7 @@ cv::Mat_<fixed> inline operator*(cv::Mat_<fixed> a, cv::Mat_<fixed> b) {
     
     for(int i=0; i<r1; ++i)
         for(int j=0; j<c2; ++j)
-            r(i,j) = 0;
+            r(i,j) = fixed(0);
         
         for(int i=0; i<r1; ++i)
             for(int j=0; j<c2; ++j)
@@ -118,23 +121,25 @@ cv::Mat_<fixed> inline toFixedMat(const cv::Matx<double,3,3> &a) {
     
     for(int i = 0; i < 3; i++)
         for(int j = 0; j < 3; j++) 
-            r(i,j) = a(i,j);
+            r(i,j) = fixed(a(i,j));
         
         return r;
-}
-
-void inline toFixedArr(const cv::Matx<double,3,3> &a, fixed r[3][3]) {
-    for(int i = 0; i < 3; i++)
-        for(int j = 0; j < 3; j++)
-            r[i][j] = a(i,j);
 }
 
 void inline printMat( cv::Mat_<fixed> a ) {
     for(int i = 0; i < a.size().height; i++) {
         for(int j = 0; j < a.size().width; j++) 
-            std::cout << a(i,j) << " ";
+            std::cout << double(a(i,j)) << " ";
         std::cout << std::endl;
     }
+}
+#endif
+
+#if defined(USEFIXED) || defined(USEFPGA)
+void inline toFixed33Arr(const cv::Matx<double,3,3> &a, fixed r[3][3]) {
+    for(int i = 0; i < 3; i++)
+        for(int j = 0; j < 3; j++)
+            r[i][j] = fixed(a(i,j));
 }
 #endif
 

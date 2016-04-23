@@ -14,10 +14,10 @@ extern "C" {
 
 #include "sort_adapter.h"
 #include <fatfs/ff.h>
-    
-#include "tuw_mr2015/tuw_self_localization/include/tuw_self_localization/fixedpoint.h"
 
-gaussian_random gauss_;
+#include "mr2015ws/src/tuw_mr2015/tuw_self_localization/include/tuw_self_localization/fixedpoint.h"
+
+gaussian_random gauss;
 
 
 ////////////////
@@ -76,7 +76,7 @@ bool sync_serial() {
 }
 
 
-#include "tuw_mr2015/tuw_self_localization/include/tuw_self_localization/com_structs.h"
+#include "mr2015ws/src/tuw_mr2015/tuw_self_localization/include/tuw_self_localization/com_structs.h"
 
 
 // helper functions for printing various data types 
@@ -85,10 +85,19 @@ void print(int a) { printf("%d", a); }
 void print(unsigned int a) { printf("%u", a); }
 void print(bool a) { printf("%d", a); }
 void print(likelihoodLookuptable a) {
-        printf("[");
-        for(int i = 0; i<5; i++)
-            printf("%.5f ", float(a.gausspdf[i]));
-        printf("...]");
+    printf("[");
+    for(int i = 0; i<5; i++)
+        printf("%.5f ", float(a.gausspdf[i]));
+    printf("...]");
+}
+void print(fixed33mat &a) {
+    printf("[");
+    for(int i = 0; i<3; i++){
+      for(int j = 0; i<5; i++)
+        printf("%.5f ", float(a.mat[i][j]));
+      if(i < 2) printf("\n");
+    }
+    printf("]");
 }
 
 
@@ -98,11 +107,11 @@ template<class msg> void readstruct(msg& m) {
     for(unsigned int i = 0; i<sizeof(m); i++) {
         *p = getchar(); p++;
     }
-
+    
 }
 
 // distance-transformed map is stored in heap 
-unsigned char *map_mem;
+unsigned char *map_mem = nullptr;
 unsigned int map_size;
 // TODO: making map size dynamic.
 unsigned int mapx = 558; unsigned int mapy = 558;
@@ -114,91 +123,200 @@ unsigned char& map(int c, int r) {
 }
 
 
-msgtype_sample *samples_mem, *samples_new_mem;
+msgtype_sample *samples_mem = nullptr, *samples_new_mem = nullptr;
 unsigned int allocated_samples = 0;
 unsigned int used_samples = 0;
 lfsr uniform(864386345);
 
+msgtype_measurement *measurement_mem = nullptr;
+unsigned int allocated_measurements = 0;
+
+
+// make a new sample by adding noise to an existing one
+inline void newNormalSample(msgtype_sample &target, const msgtype_sample &src, const fixed &sigma_position, const fixed &sigma_orientation) {
+    target.x = gauss.generate(src.x, sigma_position);
+    target.y = gauss.generate(src.y, sigma_position);
+    target.theta = gauss.generate(src.theta, sigma_orientation);
+}
+
+
+struct { inline bool operator()(const msgtype_sample &a, const msgtype_sample &b) { return a.weight < b.weight; } } cmp_sample;
+
 void resample() {
-/**
- * @ToDo Resample
- * implement a resample weel
- **/
-
-// M is the number the samples to destroy
-int M = double(msg_params.resample_rate * fixed(used_samples)), N = used_samples;
-#define MWEAKEST 0
-#define LOWVARIANCE 1
-
-if(msg_params.resample_strategy == MWEAKEST) {
+    /**
+     * @ToDo Resample
+     * implement a resample weel
+     **/
     
-    struct { bool operator()(const msgtype_sample &a, const msgtype_sample &b) { return a.weight < b.weight; } } cmp;
-    sort( samples_mem, samples_mem + used_samples, cmp);
-
+    // M is the number the samples to destroy
+    unsigned int M = int(msg_params.resample_rate * fixed(used_samples)), N = used_samples;
+    #define MWEAKEST 0
+    #define LOWVARIANCE 1
+    
     fixed sigma_position = msg_params.sigma_static_position*msg_frame_data.duration_last_update;
     fixed sigma_orientation = msg_params.sigma_static_orientation*msg_frame_data.duration_last_update;
     
-    for(int i = 0, k = N - 1; i < MIN(M, N/2); i++, k--) {
-        // napravi kopiju...
-        //samples_mem[i] = samples_mem[k];
-        // i dodaj random
-        //normal ( samples[i], *samples[i], config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
+    if(msg_params.resample_strategy == MWEAKEST) {
         
-        samples_mem[i].x = gauss_.generate(samples_mem[k].x, sigma_position);
-        samples_mem[i].y = gauss_.generate(samples_mem[k].y, sigma_position);
+        sort( samples_mem, samples_mem + used_samples, cmp_sample);
         
-        samples_mem[i].theta = gauss_.generate(samples_mem[k].theta, sigma_orientation);
-
-    }
-} 
-
-
-else if(msg_params.resample_strategy == LOWVARIANCE) {
+        
+        for(unsigned int i = 0, k = N - 1; i < MIN(M, N/2); i++, k--) {       
+            newNormalSample(samples_mem[i], samples_mem[k], sigma_position, sigma_orientation);
+        }
+    } 
     
-    // TODO
-    /*
-    // destroying M samples like in the first algorithm == sampling N-M samples
-    // M is now the number of samples to draw!
-    M = N-M;
-
-    double r = d(generator_) / M;
-    double c = samples[0]->weight();
-    int i = 0;
     
-    for(int m = 0; m<M; m++) {
-        double U = r + m / (double) M;
+    else if(msg_params.resample_strategy == LOWVARIANCE) {
         
-        while(U>c) {
-            if(i == N-1) {
-                goto escape; // can't remember when I've last used goto :)
+        
+        // destroying M samples like in the first algorithm == sampling N-M samples
+        // M is now the number of samples to draw!
+        M = N-M;
+        
+        fixed r = uniform.generate();
+        fixed c = samples_mem[0].weight;
+        unsigned int i = 0;
+        
+        for(unsigned int m = 0; m<M; m++) {
+            fixed U = r + fixed(m) * fixed(M).inv();
+            
+            while(U>c) {
+                if(i == N-1) {
+                    goto escape;
+                }
+                i++;
+                c += samples_mem[i].weight;
             }
-            i++;
-            c += samples[i]->weight();
+            
+            newNormalSample(samples_new_mem[m], samples_mem[i], sigma_position, sigma_orientation);
+            
         }
         
-        newsamples.push_back(std::make_shared<Sample>(*samples[i]));
-        normal ( newsamples.back(), *newsamples.back(), config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
+        escape: { };
+        
+        // swap two sample buffers
+        msgtype_sample *t;
+        t = samples_mem;
+        samples_mem = samples_new_mem;
+        samples_new_mem = t;
+        
+        
     }
     
-    samples = newsamples;
+    /// update number of samples by adding new ones from randomly chosen
+    while ( allocated_samples > used_samples ) {
+        
+        int p = uniform.generate32();
+        size_t j = 0;
+        j = p % used_samples;
+        newNormalSample(samples_mem[used_samples], samples_mem[j], sigma_position, sigma_orientation);
+        used_samples++;
+    }   
+}
+
+
+void weighting ( ) {
     
-    escape: { };
-    */
-}
+    
+    unsigned int used_beams[msg_params.nr_of_beams];
+    
+    if ( msg_params.random_beams )  {
+        // select random beams indexes with Fisher-Yates shuffle
+        
+        unsigned int all_beams_permutation[allocated_measurements];
+        
+        for(unsigned int i=0; i < allocated_measurements; ++i)
+            all_beams_permutation[i] = i;
+        
+        for (unsigned int i = allocated_measurements-1; i >= 0; --i) {
+            //generate a random number [0, n-1]
+            unsigned int j = uniform.generate32() % (i+1);
+            
+            //swap the last element with element at random index
+            int temp = all_beams_permutation[i];
+            all_beams_permutation[i] = all_beams_permutation[j];
+            all_beams_permutation[j] = temp;
+        }
+        
+        // read first nr_of_beams of the full permutation as the beams to use
+        for(unsigned int i = 0; i < msg_params.nr_of_beams; i++)
+            used_beams[i] = all_beams_permutation[i];
+        
+    } else {
+        // select equally distributed beams indexes
+        
+        unsigned int spacing = allocated_samples / msg_params.nr_of_beams;
+        
+        unsigned int i = spacing / 2; unsigned int c = 0;
+        while(c < msg_params.nr_of_beams) {
+            i += spacing; c++;
+        }
+    }
+    
+    for ( unsigned int idx = 0; idx < used_samples; idx++ ) {
+        msgtype_sample &s = samples_mem[idx];
+        // compute the weight for each particle
+        
+        s.weight = fixed(1);
+        
+        for(unsigned int k : used_beams) {
+            msgtype_measurement &beam = measurement_mem[k];
+            
+            if(beam.length < msg_params.z_max) {
+                
+                // beam endpoint
+                fixed &x = beam.endpoint_x; fixed &y = beam.endpoint_y;
+                
+                fixed stf[3][3];
+                fixed c_ = fcos( s.theta),  s_ = fsin( s.theta );
+                
+                
+                // matrica transformacije za sample
+                stf[0][0] = c_; stf[0][1] = -s_; stf[0][2] = s.x; stf[1][0] = s_; stf[1][1] = c_; stf[1][2] = s.y;
+                stf[2][0] = fixed(0.); stf[2][1] = fixed(0.); stf[2][2] = fixed(1.);
+                
+                auto &ztf = msg_frame_data.ztf.mat;
+                auto &ftf = msg_params.map_tf.mat;
+                    
+                int rx = int(ftf[0][2] + ftf[0][0]*stf[0][2] + ftf[0][1]*stf[1][2] + x*(ztf[0][0]*(ftf[0][0]*stf[0][0]
+                    + ftf[0][1]*stf[1][0]) + ztf[1][0]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[0][0]*stf[0][0] 
+                    + ftf[0][1]*stf[1][0]) + ztf[1][1]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + ztf[0][2]*(ftf[0][0]*stf[0][0] 
+                    + ftf[0][1]*stf[1][0]) + ztf[1][2]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1]));
+                
+                int ry = int(ftf[1][2] + ftf[1][0]*stf[0][2] + ftf[1][1]*stf[1][2] + x*(ztf[0][0]*(ftf[1][0]*stf[0][0] 
+                    + ftf[1][1]*stf[1][0]) + ztf[1][0]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[1][0]*stf[0][0] 
+                    + ftf[1][1]*stf[1][0]) + ztf[1][1]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + ztf[0][2]*(ftf[1][0]*stf[0][0] 
+                    + ftf[1][1]*stf[1][0]) + ztf[1][2]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1]));
+                
+                if (rx>=0 && rx < (int) mapx && ry >= 0  && ry < (int) mapy)
+                    
+                    s.weight = s.weight * fixed( msg_params.likelihoodLookup.gausspdf[map(ry, rx)] );
+                
+                else { //std::cout << "izletio ";
+                    s.weight = fixed(0); }
+            }
+            
+            
+        }
+        
 
-/// update number of samples
-while ( allocated_samples > used_samples ) {
-    printf("TODO fill new samples\n");
- /*   fixed p = uniform.generate() >> (32-FIXED_FRACPART);
-    size_t j = 0;
-    j = rand() % samples.size();
-    samples.push_back ( std::make_shared<Sample> ( *samples[j] ) );
-    SamplePtr &s  = samples.back();
-    normal ( s, *s, config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
-    */
-    } 
+        //samples_weight_sum += s->weight();
+        printf("Weight: %f\n", float(s.weight));
+    }
+    
+    
+    
+       /// sort and normalize particles weights
+//     sort ( samples_mem,  samples_mem + used_samples, cmp_sample );
+//     fixed samples_weight_max = fixed(0);
+//     for ( size_t i = 0; i < used_samples; i++ ) {
+//         msgtype_sample &s = samples_mem[i];
+//         //s.weight /= samples_weight_sum;
+//         if ( samples_weight_max < s.weight ) samples_weight_max = s.weight;
+//     }
+    
 }
-
 
 void main(void)
 {
@@ -206,24 +324,24 @@ void main(void)
     sio_setbaud(3000000);
     int f = open("d:likelihood.map", O_RDONLY);
     map_size = lseek(f, 0, SEEK_END);
-        
+    
     map_mem = (unsigned char*) malloc(map_size);
     
     if(map_mem == NULL)  {
         printf("Could not allocate memory for map!\n");
         return;
     }
-        
+    
     
     lseek(f, 0, SEEK_SET);
     
     read(f, map_mem, map_size);
     
-
+    
     printf("Read likelihood.map, handle %d, size %u\n", f, map_size);
     
     // TODO: read map dimensions from file
-           
+    
     // 2D array pointer
     
     //for(int i = 0; i < 20; i++)
@@ -263,36 +381,19 @@ void main(void)
                 
                 if(allocated_samples < used_samples) used_samples = allocated_samples;
             }
-                
-                printf("!end!\n");
-            }
-
-        else if(strcmp(ctmp, "data") == 0) {
-            
-            printf("Receiving data on FPGA...\n");
-            
-            readstruct(msg_frame_data);
-            
-            printf("Received data:\n");
-            
-            #define member(t,x,y) printf(#t " " #x " = "); print(msg_frame_data.x); printf("\n")
-            com_frame_data;
-            #undef member
             
             printf("!end!\n");
-            
-        }  
-        
+        }
         else if(strcmp(ctmp, "usam") == 0) {
             
             printf("Receiving initial samples on FPGA...\n");
             
-                    
+            
             for(unsigned int i = 0; i < msg_params.nr_of_samples; i++) {
                 readstruct(samples_mem[i]);
             }
             used_samples = msg_params.nr_of_samples;
-          
+            
             printf("Received data of the first sample: \n");
             
             #define member(t,x,y) printf(#t " " #x " = "); print(samples_mem[0].x); printf("\n")
@@ -303,12 +404,50 @@ void main(void)
             
         }  
         
+        else if(strcmp(ctmp, "data") == 0) {
+            
+            printf("Receiving frame data on FPGA...\n");
+            
+            readstruct(msg_frame_data);
+            
+            printf("Received data:\n");
+            
+            #define member(t,x,y) printf(#t " " #x " = "); print(msg_frame_data.x); printf("\n")
+            com_frame_data;
+            #undef member
+            
+            if(msg_frame_data.total_beam_count != allocated_measurements) {
+                measurement_mem = (msgtype_measurement*) realloc(measurement_mem, sizeof(msgtype_measurement) * msg_frame_data.total_beam_count);
+                if( measurement_mem == NULL ) {
+                    printf("Could not allocate memory for %d measurements!", msg_frame_data.total_beam_count );
+                    return;
+                } else printf( "Allocated memory for %d measurements", msg_frame_data.total_beam_count );
+                
+                allocated_measurements = msg_frame_data.total_beam_count; 
+            }
+            
+            printf("!end!\n");
+            
+            for(unsigned int i = 0; i < allocated_measurements; i++) {
+                readstruct(measurement_mem[i]);             
+            }
+            
+            
+            printf("Received %d measurements. First one: \n", allocated_measurements);
+            #define member(t,x,y) printf(#t " " #x " = "); print(measurement_mem[0].x); printf("\n")
+            com_measurement;
+            #undef member  
+            
+            printf("!end!\n");
+        }  
+        
+        
         else printf("\nSomething wrong, expected a message id, got %s!\n",ctmp);
-         
+        
         
     }
-        
-        
+    
+    
 }
 
 
