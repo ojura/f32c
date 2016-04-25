@@ -7,6 +7,7 @@
 #include <tuw_self_localization/pose_filter.h>
 #include <tuw_geometry/tuw_geometry.h>
 #include <tuw_self_localization/ParticleFilterConfig.h>
+#include <tuw_self_localization/config.h>
 
 namespace tuw {
 
@@ -28,7 +29,7 @@ public:
      * used to plot debug data into a map
      * @param figure_map 
      **/
-    void plotData (Figure &figure_map );   
+    void plotData (Figure &figure_map);
     /**
      * starts the self-localization process and predicts the vehicles pose at the timestamp encoded into the measurement
      * @param u current control command
