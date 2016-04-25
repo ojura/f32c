@@ -1,5 +1,3 @@
-#define USEFIXED
-#define USEFPGA
 #include <tuw_self_localization/particle_filter.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -10,9 +8,7 @@
 #include <boost/range/irange.hpp>
 #include <boost/range/algorithm_ext/push_back.hpp>
 #include <algorithm>
-
-
-
+#include <tuw_self_localization/config.h>
 
 using namespace tuw;
 
@@ -160,7 +156,7 @@ void ParticleFilter::update ( const Command &u ) {
     for ( SamplePtr s : samples ) {
         /**
         * @ToDo MotionModel
-        * implement the forward sample_motion_velocity alogrithm and be aware that w can be zero!!
+        * implement the forward sample_motion_velocity algorithm and be aware that w can be zero!!
 	* use the config_.alpha1 - config_.alpha6 as noise parameters
         **/
 
@@ -218,7 +214,6 @@ void ParticleFilter::update ( const Command &u ) {
 }
 
 #ifdef USEFPGA
-
 #include <tuw_self_localization/com_structs.h>
 
 
@@ -582,8 +577,8 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
 
         for(size_t k : used_beams) {
             const MeasurementLaser::Beam &beam = z->operator[] ( k );
-
-            if(beam.length < config_.z_max - 1e-4) {
+            
+            if(beam.length < config_.z_max) {
                 //std::cout << "Beam " << k << std::endl;
                 //std::cout << "x, y,  theta double: " << s->x() << " " << s->y() << " " << s->theta() << std::endl;
                 //std::cout << "x, y,  theta fixed: " << s->fx_ << " " << s->fy_ << " " << s->ftheta_ << std::endl;
@@ -633,10 +628,11 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
                 int rx = int(ftf[0][2] + ftf[0][0]*stf[0][2] + ftf[0][1]*stf[1][2] + x*(ztf[0][0]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][0]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][1]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + ztf[0][2]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][2]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1]));
                 int ry = int(ftf[1][2] + ftf[1][0]*stf[0][2] + ftf[1][1]*stf[1][2] + x*(ztf[0][0]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][0]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][1]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + ztf[0][2]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][2]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1]));
 
-                if (rx>=0 & rx < width_pixel_ & ry >= 0  & ry < height_pixel_)
-
-                    s->fweight_ = s->fweight_ * fixed(likelihood_field_(ry, rx) * config_.z_hit + config_.z_rand/config_.z_max);
-
+                if (rx>=0 & rx < width_pixel_ & ry >= 0  & ry < height_pixel_) {
+                    //std::cout << "Mult with " <<  double(fixed(likelihood_field_(ry, rx) * config_.z_hit + config_.z_rand / config_.z_max)) << std::endl;
+                    s->fweight_ = s->fweight_ *
+                                  fixed(likelihood_field_(ry, rx) * config_.z_hit + config_.z_rand / config_.z_max);
+                }
                 else { //std::cout << "izletio ";
                     s->fweight_ = fixed(0); }
             }

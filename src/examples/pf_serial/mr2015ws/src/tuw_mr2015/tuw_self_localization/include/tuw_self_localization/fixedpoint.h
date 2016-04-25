@@ -2,6 +2,7 @@
 #define FIXEDPOINT_H
 #define FIXED_FRACPART 20
 #define FIXED_INTPART 12
+#include <tuw_self_localization/config.h>
 #include <math.h>
 
 #ifdef USEFIXED

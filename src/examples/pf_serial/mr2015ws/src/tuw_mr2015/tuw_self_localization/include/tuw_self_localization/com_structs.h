@@ -1,13 +1,10 @@
 #ifndef COM_STRUCTS_H
 #define COM_STRUCTS_H
-
-//#include <tuw_self_localization/fixedpoint.h>
-
+#include <tuw_self_localization/fixedpoint.h>
 
 struct likelihoodLookuptable {
     fixed gausspdf[256];    
 };
-
 
 // in order to avoid specifying communication structs twice (struct definition and loading values) in both ROS node/FPGA slave code,
 // following macro hack is used for both: member(type, member name, variable containing value to be loaded when sending)
@@ -67,12 +64,10 @@ static struct {
     com_frame_data;
 } msg_frame_data;
 
-
 // struct for measurement
 struct msgtype_measurement {
     com_measurement;
 };
-
 
 // struct for samples
 struct msgtype_sample {
@@ -80,8 +75,5 @@ struct msgtype_sample {
 };
 
 #undef member
-    
-
-
 
 #endif
