@@ -40,8 +40,8 @@ import time
 
 import dynamic_reconfigure as dyn_reconf
 from python_qt_binding import loadUi
-from python_qt_binding.QtCore import Qt, Signal
-from python_qt_binding.QtGui import (QHeaderView, QItemSelectionModel,
+from python_qt_binding.QtCore import Qt, Signal, QItemSelectionModel
+from python_qt_binding.QtWidgets import (QHeaderView,
                                      QWidget)
 import rospy
 from rospy.exceptions import ROSException
@@ -113,7 +113,7 @@ class NodeSelectorWidget(QWidget):
         # This 1 line is needed to enable horizontal scrollbar. This setting
         # isn't available in .ui file.
         # Ref. http://stackoverflow.com/a/6648906/577001
-        self._node_selector_view.header().setResizeMode(
+        self._node_selector_view.header().setSectionResizeMode(
                                               0, QHeaderView.ResizeToContents)
 
         # Setting slot for when user clicks on QTreeView.
