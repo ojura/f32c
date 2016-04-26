@@ -2,10 +2,14 @@
 #define FIXEDPOINT_H
 #define FIXED_FRACPART 20
 #define FIXED_INTPART 12
+
+#ifndef PF_SLAVE
 #include <tuw_self_localization/config.h>
+#endif
+
 #include <math.h>
 
-#ifdef USEFIXED
+#if defined(USEFIXED) || defined (USEFPGA)
 #include <opencv2/opencv.hpp>
 #endif
 
