@@ -15,7 +15,7 @@ extern "C" {
 #include "sort_adapter.h"
 #include <fatfs/ff.h>
 
-#include "mr2015ws/src/tuw_mr2015/tuw_self_localization/include/tuw_self_localization/fixedpoint.h"
+#include "include_tuw_slmaster/fixedpoint.h"
 
 gaussian_random gauss;
 
@@ -76,7 +76,7 @@ bool sync_serial() {
 }
 
 
-#include "mr2015ws/src/tuw_mr2015/tuw_self_localization/include/tuw_self_localization/com_structs.h"
+#include "include_tuw_slmaster/com_structs.h"
 
 
 // helper functions for printing various data types 
