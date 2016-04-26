@@ -1,6 +1,7 @@
 #ifndef COM_STRUCTS_H
 #define COM_STRUCTS_H
-#include <tuw_self_localization/fixedpoint.h>
+
+#include "fixedpoint.h"
 
 struct likelihoodLookuptable {
     fixed gausspdf[256];    
