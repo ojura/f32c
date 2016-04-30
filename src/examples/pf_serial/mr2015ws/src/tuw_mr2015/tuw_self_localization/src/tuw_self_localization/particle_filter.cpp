@@ -219,7 +219,7 @@ void ParticleFilter::update ( const Command &u ) {
 
 bool comportInited = false;
 bool FPGA_params_outofdate = true;
-likelihoodLookuptable currentlikelihoodLookuptable;
+likelihoodLookupTable currentlikelihoodLookupTable;
 
 
 Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPtr &z ) {
@@ -487,7 +487,7 @@ void ParticleFilter::updateLikelihoodField () {
         // bake as much particle weight calculations into static likelihood map for use on FPGA
         boost::math::normal normal_likelihood_field = boost::math::normal ( 0, config_.sigma_hit );
         for(int i = 0; i < 256; i++)
-            currentlikelihoodLookuptable.gausspdf[i] = fixed(boost::math::pdf(normal_likelihood_field, i / scale_)
+            currentlikelihoodLookupTable.gausspdf[i] = fixed(boost::math::pdf(normal_likelihood_field, i / scale_)
                                                              * config_.z_hit + config_.z_rand/config_.z_max);
         FPGA_params_outofdate = true;
 
@@ -553,7 +553,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
     } else {
         /**
         * @ToDo SensorModel
-        * select equlay distributed beams indexes
+        * select equally distributed beams indexes
         **/
         int spacing = z->size() / config_.nr_of_beams;
 
