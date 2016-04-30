@@ -84,7 +84,7 @@ void print(fixed a) { printf("%f", float(a)); }
 void print(int a) { printf("%d", a); }
 void print(unsigned int a) { printf("%u", a); }
 void print(bool a) { printf("%d", a); }
-void print(likelihoodLookuptable a) {
+void print(likelihoodLookupTable a) {
   printf("[");
   for(int i = 0; i<5; i++)
     printf("%.5f ", float(a.gausspdf[i]));

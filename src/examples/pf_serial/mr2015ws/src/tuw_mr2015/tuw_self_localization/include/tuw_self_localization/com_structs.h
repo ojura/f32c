@@ -3,7 +3,7 @@
 
 #include "fixedpoint.h"
 
-struct likelihoodLookuptable {
+struct likelihoodLookupTable {
     fixed gausspdf[256];    
 };
 
@@ -28,7 +28,7 @@ struct likelihoodLookuptable {
     member(fixed, sigma_static_orientation, fixed(config_.sigma_static_orientation) ); \
     member(int, resample_strategy, config_.resample_strategy); \
     member(fixed, resample_rate, fixed(config_.resample_rate) ); \
-    member(likelihoodLookuptable, likelihoodLookup, currentlikelihoodLookuptable); \
+    member(likelihoodLookupTable, likelihoodLookup, currentlikelihoodLookupTable); \
     member(fixed33mat, map_tf, ftf_);
     
 //     member(fixed, z_hit, fixed(config_.z_hit)); 
@@ -51,7 +51,7 @@ struct likelihoodLookuptable {
     member(fixed, length, fixed(beam.length) ); \
     member(fixed, angle, fixed(beam.angle) ); \
     member(fixed, endpoint_x, fixed(beam.end_point.x()) ); \
-    member(fixed, endpoint_y, fixed(beam.end_point.x()) ); \
+    member(fixed, endpoint_y, fixed(beam.end_point.y()) ); \
 
 #define member(t,x,y) t x;
 
