@@ -131,14 +131,25 @@ cv::Mat_<fixed> inline toFixedMat(const cv::Matx<double,3,3> &a) {
         return r;
 }
 
-void inline printMat( cv::Mat_<fixed> a ) {
+void inline printfixedMat( cv::Mat_<fixed> a ) {
     for(int i = 0; i < a.size().height; i++) {
         for(int j = 0; j < a.size().width; j++) 
             std::cout << double(a(i,j)) << " ";
         std::cout << std::endl;
     }
 }
+
 #endif
+
+void inline printfixed33Array( fixed a[3][3] ) {
+    printf("[ ");
+    for(int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++)
+            printf("%.6lf ", double(a[i][j]));
+       if(i < 2) printf("\n");
+        else printf("]\n");
+    }
+}
 
 #if defined(USEFIXED) || defined(USEFPGA)
 void inline toFixed33Arr(const cv::Matx<double,3,3> &a, fixed r[3][3]) {
@@ -250,7 +261,7 @@ struct lfsr {
             // generate a random number in [0, 1]
             for (int j = 0; j < 32; j++)
                 update();        
-            return fixed(state, true) >> FIXED_INTPART;
+            return fixed((state & ~(1<<(FIXED_INTPART+FIXED_FRACPART-1))) >> (FIXED_INTPART-1), true);
         }
         int generate32() {
             for (int j = 0; j < 32; j++)
