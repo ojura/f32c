@@ -4,8 +4,11 @@
 #define FIXED_INTPART 12
 
 #ifndef PF_SLAVE
-#include <tuw_self_localization/config.h>
-#endif
+  #include <tuw_self_localization/config.h>
+#else
+  #include "config.h"
+#endif 
+
 
 #include <math.h>
 

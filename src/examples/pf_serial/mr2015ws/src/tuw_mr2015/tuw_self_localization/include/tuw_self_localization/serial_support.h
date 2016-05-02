@@ -8,10 +8,8 @@
 #include <iostream>
 #include <tuw_self_localization/fixedpoint.h>
 #include <tuw_self_localization/rs232.h>
+#include <tuw_self_localization/config.h>
 
-
-#define READTIMEOUT (100 * 100)
-#define SENDTIMEOUT (1)
 
 extern int cport_nr;
 
