@@ -51,16 +51,17 @@ void main(void)
   
   sio_setbaud(3000000);
   
-while(1) {
+
   eventPress();
   
-  for(int i=0; i<10000; i++) {
-    fixed v = uniform.generate();
-    printf("%d %lf\n", i, double(v));
+  for(int i=0; i<200; i++) {
+//    fixed v = uniform.generate();
+    printf("%d %08x\n", i, i);
     DELAY(1000);
   }
   printf("end\n");
   
+while(1) {
   }
 
 }
