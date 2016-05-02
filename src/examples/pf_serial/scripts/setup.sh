@@ -22,6 +22,8 @@ sudo -u $SUDO_USER git clone https://github.com/f32c/tools.git
 cd tools/ujprog
 sudo -u $SUDO_USER make -f Makefile.linux -j8
 mv ujprog /usr/bin/
+chown root:root /usr/bin/ujprog
+chmod u+sx,o+x /usr/bin/ujprog
 adduser $SUDO_USER dialout
 
 cd ../../f32c/src/compiler
