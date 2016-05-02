@@ -295,9 +295,6 @@ struct gaussian_random{
         
         fixed r;
         r.val = sum;
-        //std::cout << r << endl;
-        
-        //return r;
         
         return r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi; //fixed(0.001502508851200);
         
