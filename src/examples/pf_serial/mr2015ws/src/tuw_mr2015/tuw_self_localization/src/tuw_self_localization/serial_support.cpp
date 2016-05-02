@@ -85,22 +85,13 @@ bool initComport() {
     return true;
 }
 
-
-unsigned char FPGAgetchar() {
-    unsigned char c;
-    while(RS232_PollComport(cport_nr, &c, 1) < 1)
-        usleep(READTIMEOUT);
-    return c;
-
-}
-
 void getFPGAmsg() {
 
     unsigned char c;
 
     int endc = 0;
-    const char endtoken[] = "!end!\n";
-    while(endc != strlen(endtoken)-1) {
+    const char endtoken[] = "!end!\r\n";
+    while(endc != strlen(endtoken)) {
         c = FPGAgetchar();
 
         if (c == endtoken[endc]) endc++;
