@@ -90,9 +90,9 @@ void print(likelihoodLookupTable a) {
   printf("...]");
 }
 void print(fixed33mat &a) {
-  printf("[");
+  printf("\n[");
   for(int i = 0; i<3; i++){
-    for(int j = 0; i<5; i++)
+    for(int j = 0; j<3; j++)
       printf("%.5f ", float(a.mat[i][j]));
     if(i < 2) printf("\n");
   }
@@ -397,7 +397,7 @@ void main(void)
       
       readstruct(msg_frame_data);
       
-      printf("FPGA: Receiving frame data...\n");
+      printf("FPGA: Received frame data.\n");
       
       //printf("Received data:\n");
       
@@ -421,18 +421,18 @@ void main(void)
         (calculated_uniform_beams_total != msg_frame_data.total_beam_count ||
         calculated_uniform_nr_of_beams != msg_params.nr_of_beams))  {
         calculated_uniform_beams_total = msg_frame_data.total_beam_count;
-      calculated_uniform_nr_of_beams = msg_params.nr_of_beams;
-      
-      printf("FPGA: Precalculating beams...\n");
-      unsigned int spacing = msg_frame_data.total_beam_count / msg_params.nr_of_beams;
-      
-      unsigned int i = spacing / 2; unsigned int c = 0;
-      while(c < msg_params.nr_of_beams) {
-        used_beams[c] = i;
-        printf("FPGA: used_beams[%d] = %d\n", c, i);
-        i += spacing; c++;
-      }
+        calculated_uniform_nr_of_beams = msg_params.nr_of_beams;
+        
+        printf("FPGA: Precalculating beams...\n");
+        unsigned int spacing = msg_frame_data.total_beam_count / msg_params.nr_of_beams;
+        
+        unsigned int i = spacing / 2; unsigned int c = 0;
+        while(c < msg_params.nr_of_beams) {
+          used_beams[c] = i;
+          printf("FPGA: used_beams[%d] = %d\n", c, i);
+          i += spacing; c++;
         }
+      }
         
         printf("!end!\n");
         
