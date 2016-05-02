@@ -27,6 +27,15 @@ template<class msg>
 void sendFPGAstruct(msg m);
 
 
+inline unsigned char FPGAgetchar() {
+    unsigned char c;
+    while(RS232_PollComport(cport_nr, &c, 1) < 1)
+        usleep(READTIMEOUT);
+    return c;
+}
+
+
+
 template<class msg>
 inline void sendFPGAstruct(msg m) {
 
@@ -37,11 +46,17 @@ inline void sendFPGAstruct(msg m) {
         //printf("Sent byte %d: %x \n", i, c);
         usleep(SENDTIMEOUT);
     }
-
     //RS232_SendBuf(cport_nr, (unsigned char *) &m, sizeof(m));
-
-
     //printf("Sent %d chars\n", i);
+}
+
+template<class msg>
+inline void readFPGAstruct(msg &m) {
+
+    int i;
+    for(i = 0; i < sizeof(m); i++ ) {
+        *(((unsigned char *) &m) + i) = FPGAgetchar();
+    }
 }
 
 inline void sendFPGAstring(const char *m) {
@@ -52,20 +67,6 @@ inline void sendFPGAstring(const char *m) {
         usleep(SENDTIMEOUT);
     }
 }
-
-
-
-
-//#include "/home/juraj/projects/catkin/mr2015ws/src/tuw_mr2015/tuw_self_localization/include/tuw_self_localization/com_structs.h"
-//#define member(t,x,y) t x;
-//struct {
-//    params;
-//} pars;
-//
-//#undef member
-//#define member(t,x,y) pars.x = y
-//params;
-//#undef member
 
 
 #endif //PROJECT_SERIAL_SUPPORT_H
