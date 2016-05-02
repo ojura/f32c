@@ -16,37 +16,20 @@ void sendInt(unsigned int p) {
     RS232_SendBuf(cport_nr,  (unsigned char *) &p, 4);
 }
 
-int receiveInt() {
-
-    unsigned char c[4];
-    int p = 0;
-
-    while(p < 4) {
-        p += RS232_PollComport(cport_nr, c+p, 4-p);
-        usleep(READTIMEOUT);
-        //cout << "waiting " << p << endl;
-    }
-
-    //std::cout <<  (int) c[0]  << " "<< (int) c[1] << " " << (int) c[2] << " " << (int) c[3] << std::endl;
-    return *((int *) c);
-}
-
 int receiveToken(const char *synctoken) {
 
-    //cout << "Beginning receiveToken()" << endl;
     unsigned char c;
     int p = 0;
 
     while(p != 4) {
 
-        int tries = 10;
+        int tries = 15;
         while(RS232_PollComport(cport_nr, &c, 1) < 1 && tries) {
             usleep(READTIMEOUT);
             tries--;
         }
 
         if(tries==0) return false;
-        //cout << "Received " <<  c << " p= " << p << endl;
 
         if(synctoken[p] == c) p++;
         else return false;
@@ -62,6 +45,7 @@ void syncFPGA() {
         RS232_flushRXTX(cport_nr);
         sendFPGAstring("sync");
         synced=receiveToken("sack");
+        if(!synced) usleep(SYNCTIMEOUT);
     }
 
 }
