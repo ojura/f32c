@@ -16,6 +16,8 @@ extern "C" {
 #include <fatfs/ff.h>
 
 #include "include_tuw_slmaster/fixedpoint.h"
+#include "include_tuw_slmaster/config.h"
+
 
 gaussian_random gauss;
 
@@ -352,8 +354,7 @@ void update() {
     s.theta = s.theta + fw * dt + fgamma;
     
   }
-
-  
+ 
 }
   
   
@@ -361,7 +362,7 @@ void update() {
   void main(void)
   {
     
-    sio_setbaud(3000000);
+    sio_setbaud(COM_BAUDRATE);
     int f = open("d:likelihood.map", O_RDONLY);
     map_size = lseek(f, 0, SEEK_END);
     

@@ -68,13 +68,12 @@ void syncFPGA() {
 
 
 bool initComport() {
-    int bdrate = 3000000;
     char mode[] = {'8', 'N', '1', 0};
 
     printf("init comport\n");
     //if (comportinited) RS232_CloseComport(cport_nr);
     cport_nr = 16;
-    while (RS232_OpenComport(cport_nr, bdrate, mode)) {
+    while (RS232_OpenComport(cport_nr, COM_BAUDRATE, mode)) {
         printf("tried comport %d\n", cport_nr);
         cport_nr++;
 
