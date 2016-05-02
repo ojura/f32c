@@ -57,29 +57,26 @@ inline void eventdePress() {
 bool sync_serial() {
   // sync
   int sync = 0;
-  //printf("Beginning sync...\n");
   const char synctoken[] = "sync";
+  
   while(sync != 4) {
     char p = getchar();
-    
-    //printf("Received: %x \n", p);
-    
-    if(p==synctoken[sync]) sync++;
+
+    if(p==synctoken[sync])
+      sync++;
     else 
       return false;
-    
   }
+  
   if (!sio_rxempty()) 
     return false;
   
   printf("sack");
   return true;
-  
 }
 
 
 #include "include_tuw_slmaster/com_structs.h"
-
 
 // helper functions for printing various data types 
 void print(fixed a) { printf("%f", float(a)); }
@@ -112,13 +109,13 @@ template<class msg> void readstruct(msg& m) {
   
 }
 
-// generic function for reading a struct via serial link from master
+// generic function for sending a struct via serial link from master
 template<class msg> void sendstruct(msg& m) {
   unsigned char *p = (unsigned char *) &m;
   for(unsigned int i = 0; i<sizeof(m); i++) {
     putchar(*p); p++;
   }
- 
+  
 }
 
 
@@ -130,14 +127,16 @@ unsigned int mapx = 558; unsigned int mapy = 558;
 
 
 // 2D array-like function for accessing map value at pixel coordinates c,r
-unsigned char& map(int c, int r) {
-  return *(map_mem + r + c * mapx);    
+unsigned char& map(int y, int x) {
+  return *(map_mem + x + y * mapx);    
 }
 
 
 msgtype_sample *samples_mem = nullptr, *samples_new_mem = nullptr;
 unsigned int allocated_samples = 0;
 unsigned int used_samples = 0;
+unsigned int allocated_used_beams = 0;
+
 lfsr uniform(864386345);
 
 msgtype_measurement *measurement_mem = nullptr;
@@ -152,12 +151,14 @@ inline void newNormalSample(msgtype_sample &target, const msgtype_sample &src, c
 }
 
 
-struct { inline bool operator()(const msgtype_sample &a, const msgtype_sample &b) { return a.weight < b.weight; } } cmp_sample;
+struct { inline bool operator()(const msgtype_sample &a, const msgtype_sample &b) { return a.weight > b.weight; } } cmp_sample;
+
 
 void resample() {
-  // implement a resample weel
+  // implement a resample wheel
   
   // M is the number the samples to destroy
+  // TODO: should be scaled with frame duration?
   unsigned int M = int(msg_params.resample_rate * fixed(used_samples)), N = used_samples;
   #define MWEAKEST 0
   #define LOWVARIANCE 1
@@ -169,15 +170,12 @@ void resample() {
     
     sort( samples_mem, samples_mem + used_samples, cmp_sample);
     
+    for(unsigned int i = 0, k = N - 1; i < MIN(M, N/2); i++, k--)     
+      newNormalSample(samples_mem[k], samples_mem[i], sigma_position, sigma_orientation);
     
-    for(unsigned int i = 0, k = N - 1; i < MIN(M, N/2); i++, k--) {       
-      newNormalSample(samples_mem[i], samples_mem[k], sigma_position, sigma_orientation);
-    }
   } 
   
-  
   else if(msg_params.resample_strategy == LOWVARIANCE) {
-    
     
     // destroying M samples like in the first algorithm == sampling N-M samples
     // M is now the number of samples to draw!
@@ -225,13 +223,13 @@ void resample() {
 }
 
 
+unsigned int *used_beams=0;
+
 void weighting () {
   
   
-  unsigned int used_beams[msg_params.nr_of_beams];
-  
   if ( msg_params.random_beams )  {
-    // select random beams indexes with Fisher-Yates shuffle
+    // select random beam indexes with Fisher-Yates shuffle
     
     unsigned int all_beams_permutation[allocated_measurements];
     
@@ -252,15 +250,6 @@ void weighting () {
     for(unsigned int i = 0; i < msg_params.nr_of_beams; i++)
       used_beams[i] = all_beams_permutation[i];
     
-  } else {
-    // select equally distributed beams indexes
-    
-    unsigned int spacing = allocated_samples / msg_params.nr_of_beams;
-    
-    unsigned int i = spacing / 2; unsigned int c = 0;
-    while(c < msg_params.nr_of_beams) {
-      i += spacing; c++;
-    }
   }
   
   for ( unsigned int idx = 0; idx < used_samples; idx++ ) {
@@ -269,8 +258,9 @@ void weighting () {
     
     s.weight = fixed(1);
     
-    for(unsigned int k : used_beams) {
-      msgtype_measurement &beam = measurement_mem[k];
+    for(unsigned int k = 0; k < msg_params.nr_of_beams; k++) {
+      
+      msgtype_measurement &beam = measurement_mem[used_beams[k]];
       
       if(beam.length < msg_params.z_max) {
         
@@ -281,12 +271,16 @@ void weighting () {
         fixed c_ = fcos( s.theta),  s_ = fsin( s.theta );
         
         
-        // matrica transformacije za sample
+        // transformation matrix for the sample
         stf[0][0] = c_; stf[0][1] = -s_; stf[0][2] = s.x; stf[1][0] = s_; stf[1][1] = c_; stf[1][2] = s.y;
         stf[2][0] = fixed(0.); stf[2][1] = fixed(0.); stf[2][2] = fixed(1.);
         
         auto &ztf = msg_frame_data.ztf.mat;
         auto &ftf = msg_params.map_tf.mat;
+        
+        //printf("STF\n"); printfixed33Array(stf);
+        //printf("ZTF\n"); printfixed33Array(ztf);
+        //printf("FTF\n"); printfixed33Array(ftf);
         
         int rx = int(ftf[0][2] + ftf[0][0]*stf[0][2] + ftf[0][1]*stf[1][2] + x*(ztf[0][0]*(ftf[0][0]*stf[0][0]
         + ftf[0][1]*stf[1][0]) + ztf[1][0]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[0][0]*stf[0][0] 
@@ -298,20 +292,19 @@ void weighting () {
         + ftf[1][1]*stf[1][0]) + ztf[1][1]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + ztf[0][2]*(ftf[1][0]*stf[0][0] 
         + ftf[1][1]*stf[1][0]) + ztf[1][2]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1]));
         
-        if (rx>=0 && rx < (int) mapx && ry >= 0  && ry < (int) mapy)
-          
-          s.weight = s.weight * fixed( msg_params.likelihoodLookup.gausspdf[map(ry, rx)] );
         
-        else { //std::cout << "izletio ";
+        if (rx>=0 && rx < (int) mapx && ry >= 0  && ry < (int) mapy) {
+          s.weight = s.weight * msg_params.likelihoodLookup.gausspdf[map(ry, rx)];
+        }
+        else {
+          // out of bounds
           s.weight = fixed(0); }
       }
       
-      
     }
     
-    
     //samples_weight_sum += s->weight();
-    printf("Weight: %f\n", float(s.weight));
+    //printf("%d Weight: %.8lf\n", idx, double(s.weight));
   }
   
   
@@ -330,8 +323,8 @@ void weighting () {
 void update() {
   for (unsigned int i = 0; i < used_samples; i++ ) {
     // MotionModel
-    // implement the forward sample_motion_velocity alogrithm and be aware that w can be zero!!
-    // use the config_.alpha1 - config_.alpha6 as noise parameters
+    // implement the forward sample_motion_velocity alogrithm and be aware that w can be zero
+    // config_.alpha1 - config_.alpha6 are noise parameters
     
     fixed &dt = msg_frame_data.duration_last_update;
     msgtype_sample &s = samples_mem[i];
@@ -354,112 +347,91 @@ void update() {
     s.theta = s.theta + fw * dt + fgamma;
     
   }
- 
+  
 }
+
+unsigned int allocated_beam_indexes = 0;
+
+unsigned int calculated_uniform_beams_total = -1;
+unsigned int calculated_uniform_nr_of_beams = -1;
+
+void main(void)
+{
+  
+  sio_setbaud(COM_BAUDRATE);
+  
+  int f = open("d:likelihood.map", O_RDONLY);
+  
+  if(f == 0) {
+    printf("FPGA: Could not open likelihood.map!\n"); 
+    return;
+  }
+  
+  map_size = lseek(f, 0, SEEK_END);
+  
+  map_mem = (unsigned char*) malloc(map_size);
+  
+  if(map_mem == NULL)  {
+    printf("FPGA: Could not allocate memory for map!\n");
+    return;
+  }
   
   
+  lseek(f, 0, SEEK_SET);
   
-  void main(void)
-  {
+  read(f, map_mem, map_size);
+  
+  // TODO: read map dimensions from file  
+  printf("FPGA: Read likelihood.map, handle %d, size %u\n", f, map_size);
+  
+  while(1) {
     
-    sio_setbaud(COM_BAUDRATE);
-    int f = open("d:likelihood.map", O_RDONLY);
-    map_size = lseek(f, 0, SEEK_END);
+    char ctmp[5]; ctmp[4] = '\0';
     
-    map_mem = (unsigned char*) malloc(map_size);
+    while(!sync_serial()) { };
     
-    if(map_mem == NULL)  {
-      printf("Could not allocate memory for map!\n");
-      return;
-    }
+    for(int i = 0; i < 4; i++)
+      ctmp[i] = getchar();
     
-    
-    lseek(f, 0, SEEK_SET);
-    
-    read(f, map_mem, map_size);
-    
-    
-    printf("Read likelihood.map, handle %d, size %u\n", f, map_size);
-    
-    // TODO: read map dimensions from file
-    
-    // 2D array pointer
-    
-    while(1) {
+    if(strcmp(ctmp, "data") == 0) {
       
-      while(!sync_serial()) { };
+      readstruct(msg_frame_data);
       
-      char ctmp[5];
-      for(int i = 0; i < 4; i++)
-        ctmp[i] = getchar();
+      printf("FPGA: Receiving frame data...\n");
       
-      ctmp[4] = '\0';
+      //printf("Received data:\n");
       
-      if(strcmp(ctmp, "pars") == 0) {
-        printf("Receiving pars on FPGA...\n");
+      //#define member(t,x,y) printf(#t " " #x " = "); print(msg_frame_data.x); printf("\n")
+      //com_frame_data;
+      //#undef member
+      
+      if(msg_frame_data.total_beam_count != allocated_measurements) {
+        measurement_mem = (msgtype_measurement*) realloc(measurement_mem, sizeof(msgtype_measurement) * msg_frame_data.total_beam_count);
+        if( measurement_mem == NULL ) {
+          printf("FPGA: Could not allocate memory for %d measurements!\n", msg_frame_data.total_beam_count );
+          return;
+        } else printf( "FPGA: Allocated memory for %d measurements\n", msg_frame_data.total_beam_count );
         
-        readstruct(msg_params);
-        
-        printf("Received pars:\n");
-        
-        #define member(t,x,y) printf(#t " " #x " = "); print(msg_params.x); printf("\n")
-        com_params;
-        #undef member
-        
-        if(msg_params.nr_of_samples != allocated_samples) {
-          samples_mem = (msgtype_sample*) realloc(samples_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);
-          samples_new_mem = (msgtype_sample*) realloc(samples_new_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);
-          if(samples_mem == NULL || samples_new_mem == NULL)  {
-            printf("Could not allocate memory for %d samples!\n", msg_params.nr_of_samples);
-            return;
-          }
-          else printf("Allocated %d samples.\n", msg_params.nr_of_samples);
-          
-          if(allocated_samples < used_samples) used_samples = allocated_samples;
-        }
-        
-        printf("!end!\n");
+        allocated_measurements = msg_frame_data.total_beam_count; 
       }
-      else if(strcmp(ctmp, "usam") == 0) {
-        
-        printf("Receiving initial samples on FPGA...\n");
-        
-        
-        for(unsigned int i = 0; i < msg_params.nr_of_samples; i++) {
-          readstruct(samples_mem[i]);
-        }
-        used_samples = msg_params.nr_of_samples;
-        
-        printf("Received data of the first sample: \n");
-        
-        #define member(t,x,y) printf(#t " " #x " = "); print(samples_mem[0].x); printf("\n")
-        com_sample;
-        #undef member
-        
-        printf("!end!\n");
-        
-      }  
       
-      else if(strcmp(ctmp, "data") == 0) {
-        
-        printf("Receiving frame data on FPGA...\n");
-        
-        readstruct(msg_frame_data);
-        
-        printf("Received data:\n");
-        
-        #define member(t,x,y) printf(#t " " #x " = "); print(msg_frame_data.x); printf("\n")
-        com_frame_data;
-        #undef member
-        
-        if(msg_frame_data.total_beam_count != allocated_measurements) {
-          measurement_mem = (msgtype_measurement*) realloc(measurement_mem, sizeof(msgtype_measurement) * msg_frame_data.total_beam_count);
-          if( measurement_mem == NULL ) {
-            printf("Could not allocate memory for %d measurements!", msg_frame_data.total_beam_count );
-            return;
-          } else printf( "Allocated memory for %d measurements", msg_frame_data.total_beam_count );
-          
-          allocated_measurements = msg_frame_data.total_beam_count; 
+      
+      // if using uniformly spaced laser beams, precalculate them now. update only if necessary
+      if(msg_params.random_beams == false  && 
+        (calculated_uniform_beams_total != msg_frame_data.total_beam_count ||
+        calculated_uniform_nr_of_beams != msg_params.nr_of_beams))  {
+        calculated_uniform_beams_total = msg_frame_data.total_beam_count;
+      calculated_uniform_nr_of_beams = msg_params.nr_of_beams;
+      
+      printf("FPGA: Precalculating beams...\n");
+      unsigned int spacing = msg_frame_data.total_beam_count / msg_params.nr_of_beams;
+      
+      unsigned int i = spacing / 2; unsigned int c = 0;
+      while(c < msg_params.nr_of_beams) {
+        used_beams[c] = i;
+        printf("FPGA: used_beams[%d] = %d\n", c, i);
+        i += spacing; c++;
+      }
         }
         
         printf("!end!\n");
@@ -469,43 +441,96 @@ void update() {
         }
         
         
-        printf("Received %d measurements. First one: \n", allocated_measurements);
-        #define member(t,x,y) printf(#t " " #x " = "); print(measurement_mem[0].x); printf("\n")
-        com_measurement;
-        #undef member  
+        //printf("Received %d measurements. First one: \n", allocated_measurements);
+        //#define member(t,x,y) printf(#t " " #x " = "); print(measurement_mem[0].x); printf("\n")
+        //com_measurement;
+        //#undef member  
         
         if ( msg_params.enable_resample ) resample();
         if ( msg_params.enable_update ) update();
         if ( msg_params.enable_weighting ) weighting();
         
         printf("!end!\n");
-
+        
+        
+    }
+    
+    else if(strcmp(ctmp, "dsam") == 0) {
       
-      }
-       
-      else if(strcmp(ctmp, "dsam") == 0) {
-              
+      for(unsigned int i = 0; i < msg_params.nr_of_samples; i++) {
+        sendstruct(samples_mem[i]);
+      }     
+      
+      if(msg_params.nr_of_samples != used_samples) {
+        printf("FPGA: Sanity check failed: used samples != nr_of_samples");
+        return; }
         
-        for(unsigned int i = 0; i < msg_params.nr_of_samples; i++) {
-          sendstruct(samples_mem[i]);
-        }
-
-       if(msg_params.nr_of_samples != used_samples)
-          printf("Sanity check failed: used samples != nr_of_samples");
-        
-        printf("Uploaded %d samples \n", used_samples);
+        printf("FPGA: Downloaded %d samples \n", used_samples);
         
         printf("!end!\n");
         
-      }
-           
-      else printf("\nSomething wrong, expected a message id, got %s!\n", ctmp);
-      
-      
     }
+    
+    else if(strcmp(ctmp, "pars") == 0) {
+      
+      readstruct(msg_params);
+      
+      printf("FPGA: Received pars:\n");
+      
+      #define member(t,x,y) printf("FPGA: " #t " " #x " = "); print(msg_params.x); printf("\n")
+      com_params;
+      #undef member
+      
+      if(msg_params.nr_of_samples != allocated_samples) {
+        samples_mem = (msgtype_sample*) realloc(samples_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);
+        samples_new_mem = (msgtype_sample*) realloc(samples_new_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);
+        if(samples_mem == NULL || samples_new_mem == NULL)  {
+          printf("FPGA: Could not allocate memory for %d samples!\n", msg_params.nr_of_samples);
+          return;
+        }
+        
+        allocated_samples = msg_params.nr_of_samples;
+        printf("FPGA: Allocated %d samples.\n", msg_params.nr_of_samples);
+        
+        if(allocated_samples < used_samples) used_samples = allocated_samples;
+        
+      }
+      
+      if(msg_params.nr_of_beams != allocated_used_beams) {
+        used_beams = (unsigned int*) realloc(used_beams, sizeof(unsigned int) * msg_params.nr_of_beams);
+        if(used_beams == NULL)  {
+          printf("FPGA: Could not allocate memory for %d used beam indexes!\n", msg_params.nr_of_beams);
+          return;
+        }
+        allocated_used_beams = msg_params.nr_of_beams;
+      }
+      
+      printf("!end!\n");
+    }
+    else if(strcmp(ctmp, "usam") == 0) {  
+      
+      for(unsigned int i = 0; i < msg_params.nr_of_samples; i++) {
+        readstruct(samples_mem[i]);
+      }
+      used_samples = msg_params.nr_of_samples;
+      
+      printf("FPGA: Received data of the first sample: \n");
+      
+      #define member(t,x,y) printf("FPGA: " #t " " #x " = "); print(samples_mem[0].x); printf("\n")
+      com_sample;
+      #undef member
+      
+      printf("!end!\n");
+      
+    }  
+    
+    else printf("\nFPGA: Something wrong, expected a message id, got %s!\n", ctmp);
     
     
   }
   
   
-  
+}
+
+
+

@@ -64,9 +64,9 @@ void ParticleFilter::init ( ) {
             initUniform();
     };
     reset_ = false;
-    #ifdef USEFPGA
+#ifdef USEFPGA
     FPGA_samplesNeedUploading = true;
-    #endif
+#endif
 }
 
 #if defined USEFPGA || defined USEFIXED
@@ -86,13 +86,16 @@ void convertSampleToDouble(const SamplePtr& s) {
 #endif
 
 void ParticleFilter::initNormal () {
+    // fixing the seed for debug purposes should be done here
+    // generator_.seed(1);
+
     for ( SamplePtr &s: samples ) {
         s = std::make_shared<Sample>();
         normal ( s, pose_init_, config_.sigma_init_position, config_.sigma_init_orientation );
 
-        #if defined USEFPGA || defined USEFIXED
+#if defined USEFPGA || defined USEFIXED
         convertSampleToFixed(s);
-        #endif
+#endif
     }
 }
 
@@ -101,9 +104,9 @@ void ParticleFilter::initUniform () {
         s = std::make_shared<Sample>();
         uniform ( s, uniform_distribution_x_, uniform_distribution_y_, uniform_distribution_theta_ );
 
-        #if defined USEFPGA || defined USEFIXED
+#if defined USEFPGA || defined USEFIXED
         convertSampleToFixed(s);
-        #endif
+#endif
     }
 }
 
@@ -129,9 +132,9 @@ void ParticleFilter::initGrid () {
                     samples[i]->set ( x,y,theta );
                     samples[i]->idx() = i;
 
-                    #if defined USEFPGA || defined USEFIXED
+#if defined USEFPGA || defined USEFIXED
                     convertSampleToFixed(samples[i]);
-                    #endif
+#endif
 
                     i++;
 
@@ -161,7 +164,7 @@ void ParticleFilter::update ( const Command &u ) {
         **/
 
         double v = u.v(), w = u.w();
-        // v i w su upravljacki signali koji dolaze izvana + gaussov random
+        // v and w are control signals we are given
 
         fixed fv_w = fixed(v/w);
 
@@ -180,8 +183,7 @@ void ParticleFilter::update ( const Command &u ) {
         }
         s->ftheta_ = s->ftheta_ + fw * fdt + fgamma;
 
-        // interno u PF ne koristimo doubleove, ali ostatku programa exposeamo trenutne vrijednosti particlea
-        // u double formatu da sve ostalo radi kao i prije...
+        // fixed values are exposed to the rest of the code here
         convertSampleToDouble(s);
     }
 #else
@@ -192,23 +194,23 @@ void ParticleFilter::update ( const Command &u ) {
 	* use the config_.alpha1 - config_.alpha6 as noise parameters
         **/
 
-	double w = u.w();
-	double v = u.v();
-	
-	v = v + normal_distribution_ ( generator_ ) * (config_.alpha1*v*v + config_.alpha2*w*w);
-	
-	w = w + normal_distribution_ ( generator_ ) * (config_.alpha3*v*v + config_.alpha4*w*w);
-	double gamma = normal_distribution_ ( generator_ ) * (config_.alpha5*v*v + config_.alpha6*w*w);
-	
-	if(w!=0) {
-	s->x() = s->x() + v/w * ( - sin(s->theta()) + sin(s->theta() + w * dt) ) ;
-	s->y() = s->y() + v/w * ( cos(s->theta()) - cos(s->theta() + w * dt) ) ;
-	} else {
-	  s->x() =  s->x()  + v * dt * cos(s->theta());
-	  s->y() =  s->y()  + v * dt * sin(s->theta());
-	}
-	s->theta() = s->theta() + w * dt + gamma;
-	
+        double w = u.w();
+        double v = u.v();
+
+        v = v + normal_distribution_ ( generator_ ) * (config_.alpha1*v*v + config_.alpha2*w*w);
+
+        w = w + normal_distribution_ ( generator_ ) * (config_.alpha3*v*v + config_.alpha4*w*w);
+        double gamma = normal_distribution_ ( generator_ ) * (config_.alpha5*v*v + config_.alpha6*w*w);
+
+        if(w!=0) {
+            s->x() = s->x() + v/w * ( - sin(s->theta()) + sin(s->theta() + w * dt) ) ;
+            s->y() = s->y() + v/w * ( cos(s->theta()) - cos(s->theta() + w * dt) ) ;
+        } else {
+            s->x() =  s->x()  + v * dt * cos(s->theta());
+            s->y() =  s->y()  + v * dt * sin(s->theta());
+        }
+        s->theta() = s->theta() + w * dt + gamma;
+
     }
 #endif
 }
@@ -233,9 +235,9 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
         }
 
         if(FPGA_params_outofdate) {
-            #define member(t,x,y) msg_params.x = y
+#define member(t,x,y) msg_params.x = y
             com_params;
-            #undef member
+#undef member
 
             std::cout << "Awaiting sync for sending params " << std::endl;
             syncFPGA();
@@ -266,9 +268,9 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
             for ( int i = 0; i < samples.size(); i++ ) {
                 const SamplePtr &s = samples[i];
 
-                #define member(t,x,y) msg_sample.x = y
+#define member(t,x,y) msg_sample.x = y
                 com_sample;
-                #undef member
+#undef member
 
                 sendFPGAstruct(msg_sample);
 
@@ -283,43 +285,67 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 
         // frame data upload
         syncFPGA();
-        std::cout << "Synced for data" << std::endl;
+        std::cout << std::endl << "Synced for data" << std::endl;
 
         sendFPGAstring("data");
 
         unsigned int total_beam_count = ( (const MeasurementLaserConstPtr&) z)->size();
 
+        // laser sensor - robot base transformation matrix
         fixed33mat ztf;
         toFixed33Arr(( (const MeasurementLaserConstPtr&) z)->tf(), ztf.mat);
 
-        #define member(t,x,y) msg_frame_data.x = y
+        // frame data contains speeds v and w, beam count and sensor base transformation...
+#define member(t,x,y) msg_frame_data.x = y
         com_frame_data;
-        #undef member
+#undef member
 
         sendFPGAstruct(msg_frame_data);
 
         getFPGAmsg();
 
+        // ...followed by laser measurements
         msgtype_measurement msg_measurement;
         for(unsigned int i = 0; i < total_beam_count; i++ ) {
             const MeasurementLaser::Beam &beam = ((const MeasurementLaserConstPtr&) z)->operator[] ( i );
 
-            #define member(t,x,y) msg_measurement.x = y
+#define member(t,x,y) msg_measurement.x = y
             com_measurement
-            #undef member
+#undef member
 
             sendFPGAstruct(msg_measurement);
         }
 
         getFPGAmsg();
 
-        //if ( config_.enable_resample ) resample();
-        //if ( config_.enable_update ) update ( u );
-        //if ( config_.enable_weighting ) weighting ( ( const MeasurementLaserConstPtr& ) z );
-        //pose_estimated_ = *samples[0];
+        // download samples
+        syncFPGA();
+        std::cout << "Synced for dsam" << std::endl;
 
-        std::cout << "Should die now" << std::endl;
-        exit(0);
+        sendFPGAstring("dsam");
+
+        msgtype_sample msg_sample;
+
+        samples_weight_max_ = 0;
+        for ( int i = 0; i < samples.size(); i++ ) {
+            const SamplePtr &s = samples[i];
+
+            readFPGAstruct(msg_sample);
+            s->fx_ = msg_sample.x;
+            s->fy_ = msg_sample.y;
+            s->ftheta_ = msg_sample.theta;
+            s->fweight_ = msg_sample.weight;
+
+            // to the rest of the code, fixed numbers converted to doubles are exposed
+            convertSampleToDouble(s);
+
+            if (s->weight() > samples_weight_max_) samples_weight_max_ = s->weight();
+        }
+
+        getFPGAmsg();
+        // TODO more advanced methods of determining the best sample
+        pose_estimated_ = *samples[0];
+
     }
     return pose_estimated_;
 
@@ -340,7 +366,7 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 #endif
 
 
-MeasurementLaser *zadnji;
+MeasurementLaser *prevLaserMeasurement;
 
 void ParticleFilter::plotData ( Figure &figure_map ) {
 
@@ -360,18 +386,16 @@ void ParticleFilter::plotData ( Figure &figure_map ) {
 
 
         }
-        //  std::cout << std::endl;
+
     }
 
     double scale =  255.0 / samples_weight_max_ ;
     char text[0xFF];
-    //std::cout << "new iter" << std::endl;
     for ( int i = samples.size()-1; i >= 0; i-- ) {
         const SamplePtr &s = samples[i];
         /**
         * @ToDo MotionModel
-        * plot all samples use figure_map.symbol(....
-	* 
+        * plot all samples use figure_map.symbol(....)
         **/
 
         //std::cout << *s << std::endl;
@@ -381,17 +405,17 @@ void ParticleFilter::plotData ( Figure &figure_map ) {
 
 // 	if(config_.alpha6 == 0.2)
 // 	  std::cout << "okinuto" << std::endl;
-// 	for ( size_t i = 0; i < zadnji->size(); i++ ) {
+// 	for ( size_t i = 0; i < prevLaserMeasurement->size(); i++ ) {
 // 	    /**
 // 	    * @ToDo MotionModel
 // 	    * plot the laser data into the map and use the transformation measurement_laser_->tf() as well!!
 // 	    **/ 
-// 	    const MeasurementLaser::Beam &beam = zadnji->operator[] ( i );
+// 	    const MeasurementLaser::Beam &beam = prevLaserMeasurement->operator[] ( i );
 // 	    
 // 	    
 // 	    Point2D end_point = beam.end_point;
 // 
-// 	    end_point =  s->tf() * zadnji->tf() * end_point;
+// 	    end_point =  s->tf() * prevLaserMeasurement->tf() * end_point;
 // 	    
 // 	    
 // 	    
@@ -425,13 +449,12 @@ void ParticleFilter::setConfig ( const void *config ) {
     config_ = * ( ( tuw_self_localization::ParticleFilterConfig* ) config );
     updateLikelihoodField();
 
-    #ifdef USEFPGA
+#ifdef USEFPGA
     FPGA_params_outofdate = true;
+#endif
     std::cout << "setconfig callback" << std::endl;
-
-    #endif
-
 }
+
 void ParticleFilter::loadMap ( int width_pixel, int height_pixel, double min_x, double max_x, double min_y, double max_y, double roation, const std::string &file ) {
     width_pixel_ = width_pixel,   height_pixel_ = height_pixel;
     min_y_ = min_y, max_y_ = max_y, min_x_ = min_x, max_x_ = max_x, roation_ = roation;
@@ -478,13 +501,14 @@ void ParticleFilter::loadMap ( int width_pixel, int height_pixel, double min_x, 
 
 void ParticleFilter::updateLikelihoodField () {
 
-    #ifdef USEFPGA
+#ifdef USEFPGA
     if (zhit_likelihood_field_ == config_.z_hit &&
-            zmax_likelihood_field_ == config_.z_max &&
-            zrand_likelihood_field_ == config_.z_rand &&
-            sigma_likelihood_field_ == config_.sigma_hit) return;
+        zmax_likelihood_field_ == config_.z_max &&
+        zrand_likelihood_field_ == config_.z_rand &&
+        sigma_likelihood_field_ == config_.sigma_hit) return;
     else {
         // bake as much particle weight calculations into static likelihood map for use on FPGA
+        // TODO: consider taking logarithm and use addition instead of multiplication in particle filter
         boost::math::normal normal_likelihood_field = boost::math::normal ( 0, config_.sigma_hit );
         for(int i = 0; i < 256; i++)
             currentlikelihoodLookupTable.gausspdf[i] = fixed(boost::math::pdf(normal_likelihood_field, i / scale_)
@@ -495,29 +519,26 @@ void ParticleFilter::updateLikelihoodField () {
         zmax_likelihood_field_ = config_.z_max;
         zrand_likelihood_field_ = config_.z_rand;
     }
-    #endif
+#endif
 
 
     if ( sigma_likelihood_field_ == config_.sigma_hit ) return;
     sigma_likelihood_field_ = config_.sigma_hit;
     boost::math::normal normal_likelihood_field = boost::math::normal ( 0, config_.sigma_hit );
 
-
-
-
     /**
     * @ToDo SensorModel
     * using the cv::distanceTransform and the boost::math::pdf  
     **/
     cv::distanceTransform(map_, distance_field_pixel_, CV_DIST_L2,CV_DIST_MASK_PRECISE);
-    distance_field_ =  distance_field_pixel_ / scale_;
+    distance_field_ =  distance_field_pixel_;
 
-   // std::ofstream lmap("/home/juraj/lmap.map", std::ios::binary);
+    // TODO make a separate binary packed likelihood (distance) map export utility
+    // std::ofstream lmap("/home/juraj/lmap.map", std::ios::binary);
     for ( int r = 0; r < likelihood_field_.rows; r++ ) {
         for ( int c = 0; c < likelihood_field_.cols; c++ ) {
             float g =  distance_field_(r,c);
-            //std::cout << (int) distance_field_pixel_(r,c)  << std::endl;
-            float f = boost::math::pdf(normal_likelihood_field, g);
+            float f = boost::math::pdf(normal_likelihood_field, g/scale_ );
             likelihood_field_(r,c) = f;
             //char ff = distance_field_pixel_(r,c);
 
@@ -526,13 +547,11 @@ void ParticleFilter::updateLikelihoodField () {
     }
 }
 
-
-
 void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
 
-    delete zadnji;
-    zadnji = new MeasurementLaser;
-    *zadnji = *z;
+    delete prevLaserMeasurement;
+    prevLaserMeasurement = new MeasurementLaser;
+    *prevLaserMeasurement = *z;
 
     if ( config_.nr_of_beams >  z->size() ) config_.nr_of_beams = z->size();
     std::vector<size_t> used_beams;
@@ -579,30 +598,16 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
             const MeasurementLaser::Beam &beam = z->operator[] ( k );
             
             if(beam.length < config_.z_max) {
-                //std::cout << "Beam " << k << std::endl;
-                //std::cout << "x, y,  theta double: " << s->x() << " " << s->y() << " " << s->theta() << std::endl;
-                //std::cout << "x, y,  theta fixed: " << s->fx_ << " " << s->fy_ << " " << s->ftheta_ << std::endl;
 
-
-                // beam endpoint, mozemo uzeti da dobijemo precomputeano izvana
                 Point2D end_point = beam.end_point;
 
-                /*cv::Mat_<fixed> fend_point(3,1);
-                fend_point(0,0) = end_point.x();
-                fend_point(1,0) = end_point.y();
-                fend_point(2,0) = 1.; */
-
                 fixed x = fixed(end_point.x()), y = fixed(end_point.y());
-
-                //std::cout << "Testiranje kompilacije" << std::endl;
-
-                //std::cout << "Beam endpoint "; printMat(fend_point);
 
                 fixed stf[3][3], ztf[3][3];
                 fixed c_ = fcos( s->ftheta_),  s_ = fsin( s->ftheta_ );
 
 
-                // matrica transformacije za sample
+                // sample transformation matrix
                 stf[0][0] = c_; stf[0][1] = -s_; stf[0][2] = s->fx_; stf[1][0] = s_; stf[1][1] = c_; stf[1][2] = s->fy_;
                 stf[2][0] = fixed(0); stf[2][1] = fixed(0); stf[2][2] = fixed(1);
 
@@ -612,39 +617,28 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
                     for(int j = 0; j < 3; j++)
                         ztf[i][j] = ztf_(i,j);
 
-
-                //std::cout << std::endl << "STF "; printMat(stf);
-
-                //std::cout << std::endl << "ZTF "; printMat(ztf);
-
-                //std::cout << std::endl << "TF "; printMat(ftf_);
-
-                //fend_point = ftf_ *  stf * ztf * fend_point;
-
-                //auto &ftfa = ftf;
-                //std::cout << std::endl << "Endpoint "; printMat(fend_point);
-
                 auto &ftf = ftf_.mat;
+
+                //printf("STF\n"); printfixed33Array(stf);
+                //printf("ZTF\n"); printfixed33Array(ztf);
+                //printf("FTF\n"); printfixed33Array(ftf);
+
                 int rx = int(ftf[0][2] + ftf[0][0]*stf[0][2] + ftf[0][1]*stf[1][2] + x*(ztf[0][0]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][0]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][1]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1])) + ztf[0][2]*(ftf[0][0]*stf[0][0] + ftf[0][1]*stf[1][0]) + ztf[1][2]*(ftf[0][0]*stf[0][1] + ftf[0][1]*stf[1][1]));
                 int ry = int(ftf[1][2] + ftf[1][0]*stf[0][2] + ftf[1][1]*stf[1][2] + x*(ztf[0][0]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][0]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + y*(ztf[0][1]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][1]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1])) + ztf[0][2]*(ftf[1][0]*stf[0][0] + ftf[1][1]*stf[1][0]) + ztf[1][2]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1]));
 
                 if (rx>=0 & rx < width_pixel_ & ry >= 0  & ry < height_pixel_) {
-                    //std::cout << "Mult with " <<  double(fixed(likelihood_field_(ry, rx) * config_.z_hit + config_.z_rand / config_.z_max)) << std::endl;
                     s->fweight_ = s->fweight_ *
                                   fixed(likelihood_field_(ry, rx) * config_.z_hit + config_.z_rand / config_.z_max);
                 }
-                else { //std::cout << "izletio ";
+                else {
+                    // out of bounds
                     s->fweight_ = fixed(0); }
             }
 
-
-            //exit(0);
         }
 
-        //s->weight()=std::exp(1.5*s->weight())-1;
         //samples_weight_sum += s->weight();
         convertSampleToDouble(s);
-        std::cout << "Weight: " << double(s->fweight_) << std::endl;
     }
 
     struct cmp_sample { bool operator() (SamplePtr a, SamplePtr b) { return a->fweight_.val > b->fweight_.val; } };
@@ -661,7 +655,7 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
 
 #else
     double samples_weight_sum = 0;
-    
+
     for ( size_t idx = 0; idx < samples.size(); idx++ ) {
         SamplePtr &s = samples[idx];
         /**
@@ -669,54 +663,43 @@ void ParticleFilter::weighting ( const MeasurementLaserConstPtr &z ) {
         * compute the weight for each particle
         **/
         s->weight() = 1;
-	
-	for(size_t k : used_beams) {
-	   const MeasurementLaser::Beam &beam = z->operator[] ( k );
-	   
-	   if(beam.length <  config_.z_max - 1e-4) {
-	     //std::cout << "Beam " << k << std::endl;
-	     //std::cout << "x, y,  theta double: " << s->x() << " " << s->y() << " " << s->theta() << std::endl;
-	     
-	      	Point2D end_point = beam.end_point;
-		//std::cout << "Beam endpoint " << end_point;
-		
-		//std::cout << std::endl << "STF " << s->tf();
-		
-		//std::cout << std::endl << "ZTF " << z->tf();
-		
-		//std::cout << std::endl << "TF " << tf_;
-		
-		end_point = tf_ * s->tf() * z->tf() * end_point;
-		
-		//std::cout << std::endl << "Endpoint " << end_point;
-		
-		int x = end_point.x(), y = end_point.y();
-		if (x>=0 & x < width_pixel_ & y >= 0  & y < height_pixel_)
-		
-		s->weight() *= likelihood_field_(y, x) * config_.z_hit + config_.z_rand/config_.z_max;
-		//s->weight() *= 1;
-		else {
-		  s->weight() = 0; //std::cout << "izletio ";
-		  
-		}
-	   }	
-	   
-	   //exit(0);
-	}
 
-	//s->weight()=std::exp(1.5*s->weight())-1;
+        for(size_t k : used_beams) {
+            const MeasurementLaser::Beam &beam = z->operator[] ( k );
+
+            if(beam.length <  config_.z_max - 1e-4) {
+                Point2D end_point = beam.end_point;
+                //std::cout << "Beam endpoint " << end_point;
+                //std::cout << std::endl << "STF " << s->tf();
+                //std::cout << std::endl << "ZTF " << z->tf();
+                //std::cout << std::endl << "TF " << tf_;
+
+                end_point = tf_ * s->tf() * z->tf() * end_point;
+
+                //std::cout << std::endl << "Endpoint " << end_point;
+
+                int x = end_point.x(), y = end_point.y();
+                if (x>=0 & x < width_pixel_ & y >= 0  & y < height_pixel_)
+
+                    s->weight() *= likelihood_field_(y, x) * config_.z_hit + config_.z_rand/config_.z_max;
+                else {
+                    // out of bounds
+                    s->weight() = 0;
+                }
+            }
+
+        }
+
         samples_weight_sum += s->weight();
-	
-	//std::cout << "Weight: " << s->weight() << std::endl;
     }
-    
+
     /// sort and normalize particles weights
-    std::sort ( samples.begin(),  samples.end(), Sample::greater ); 
+    std::sort ( samples.begin(),  samples.end(), Sample::greater );
     samples_weight_max_ = 0;
     for ( size_t i = 0; i < samples.size(); i++ ) {
         SamplePtr &s = samples[i];
-        // radi i bez toga
-	    //s->weight() /= samples_weight_sum;
+        // not necessary for MWEAKEST
+        //s->weight() /= samples_weight_sum;
         s->idx() = i;
         if ( samples_weight_max_ < s->weight() ) samples_weight_max_ = s->weight();
     }
@@ -772,12 +755,12 @@ void ParticleFilter::resample () {
         }
 #else
         auto cmp = [](SamplePtr a, SamplePtr b) { return a->weight() < b->weight(); };
-      sort( samples.begin(), samples.end(), cmp);
-      
-      for(int i = 0, k = N - 1; i < std::min(M, N/2); i++, k--) {
-	samples[i] = std::make_shared<Sample> ( *samples[k] );
-	normal ( samples[i], *samples[i], config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
-      }
+        sort( samples.begin(), samples.end(), cmp);
+
+        for(int i = 0, k = N - 1; i < std::min(M, N/2); i++, k--) {
+            samples[i] = std::make_shared<Sample> ( *samples[k] );
+            normal ( samples[i], *samples[i], config_.sigma_static_position*dt, config_.sigma_static_orientation*dt );
+        }
 #endif
 
 
