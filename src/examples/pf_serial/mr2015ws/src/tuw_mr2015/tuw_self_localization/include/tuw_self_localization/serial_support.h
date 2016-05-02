@@ -10,7 +10,7 @@
 #include <tuw_self_localization/rs232.h>
 
 
-#define READTIMEOUT (100 * 1000)
+#define READTIMEOUT (100 * 100)
 #define SENDTIMEOUT (1)
 
 extern int cport_nr;
