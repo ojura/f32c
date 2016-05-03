@@ -10,7 +10,7 @@ echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt
 apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 0xB01FA116
 apt update
 apt dist-upgrade --yes
-apt install git libftdi-dev libopencv-dev python-pyqt5 python-rosdep rosbash ros-core ros-kinetic-dynamic-reconfigure ros-kinetic-geometry-msgs ros-kinetic-nav-msgs ros-kinetic-roscpp ros-kinetic-rospy ros-kinetic-rqt-gui-py ros-kinetic-sensor-msgs ros-kinetic-stage ros-kinetic-std-srvs ros-kinetic-tf --yes
+apt install git libftdi-dev libopencv-dev python-pyqt5 python-rosdep rosbash ros-core ros-kinetic-dynamic-reconfigure ros-kinetic-geometry-msgs ros-kinetic-nav-msgs ros-kinetic-roscpp ros-kinetic-rospy ros-kinetic-rqt-gui-py ros-kinetic-sensor-msgs ros-kinetic-stage ros-kinetic-std-srvs ros-kinetic-tf ros-kinetic-rqt-reconfigure ros-kinetic-stage-ros --yes
 apt-get clean
 
 
