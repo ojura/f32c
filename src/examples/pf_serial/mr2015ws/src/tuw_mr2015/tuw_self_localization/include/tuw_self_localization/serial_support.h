@@ -6,7 +6,6 @@
 #define SERIAL_SUPPORT_H
 
 #include <iostream>
-#include <tuw_self_localization/fixedpoint.h>
 #include <tuw_self_localization/rs232.h>
 #include <tuw_self_localization/config.h>
 
