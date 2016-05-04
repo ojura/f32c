@@ -80,7 +80,7 @@ void getFPGAmsg() {
         if (c == endtoken[endc]) endc++;
         else {
             for (int i = 0; i < endc; i++)
-                std::cout << endtoken[endc];
+                std::cout << endtoken[i];
             endc = 0;
             std::cout << c;
         }
