@@ -107,12 +107,12 @@ void main(void)
 
  //eventPress();
   
-  int count = 150;
+  int count = 1500;
   
   for(int i=0; i<count; i++) {
 //    curcaller = 100;
     readstruct(msg[i]);
-    printf("Got %d\n!end!\n", i);
+    printf("Got %d\n", i);
   }
  
   printf("Hello! %d\n",i);
