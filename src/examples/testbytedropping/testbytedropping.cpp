@@ -46,34 +46,18 @@ inline void eventdePress() {
 
 ////////////////
 
+// char bigbuf[1024];
+// int bigp = 0;
+// int caller[1024]; int curcaller;
 
-bool sync_serial() {
-  // sync
-  int sync = 0;
-  const char synctoken[] = "sync";
-  
-  while(sync != 4) {
-    char p = getchar();
-
-    if(p==synctoken[sync])
-      sync++;
-    else 
-      return false;
-  }
-  
-  if (!sio_rxempty()) 
-    return false;
-  
-  printf("sack");
-  return true;
-}
 //
 // generic function for reading a struct via serial link from master
 template<class msg> void readstruct(msg& m) {
   unsigned char *p = (unsigned char *) &m;
   for(unsigned int i = 0; i<sizeof(m); i++) {
     *p = getchar();
-    printf("Got %d\n", *p);
+//     bigbuf[bigp] = *p;
+//     caller[bigp] = curcaller;  bigp++;
     p++;
   }
   
@@ -88,7 +72,29 @@ template<class msg> void sendstruct(msg& m) {
   
 }
 
-// struct { int index; int podaci[3]; } msg[200];
+bool sync_serial() {
+  // sync
+  int sync = 0;
+  const char synctoken[] = "sync";
+  
+  while(sync < 4) {
+    //curcaller = sync;
+    char p; readstruct(p);
+    
+    if(p==synctoken[sync])
+      sync++;
+    else 
+      return false;
+  }
+  
+  if (!sio_rxempty()) 
+    return false;
+  
+  printf("sack");
+  return true;
+}
+
+struct { int index; int podaci[3]; } msg[200];
 
 void main(void)
 {
@@ -97,27 +103,33 @@ void main(void)
 
   while(1) {
   int i = 0;
-  while(sync_serial()) { i++; };
+  while(!sync_serial()) { i++; };
 
  //eventPress();
   
-  int count = 9;
+  int count = 100;
   
-  char buf[10];
   for(int i=0; i<count; i++) {
-    readstruct(buf[i]);
-    //printf("%d %d\n", i, msg.index);
+//    curcaller = 100;
+    readstruct(msg[i]);
   }
  
   printf("Hello! %d\n",i);
   i=0;
   
-//   for(int i=0; i<count; i++) {
-//     if( i != msg[i].index || msg[i].podaci[0] != 1 || msg[i].podaci[1] != 2 || msg[i].podaci[2] != 3)
-//      printf("%d %d\n", i, msg[i].index);
-//   }
+   for(int i=0; i<count; i++) {
+     if( i != msg[i].index || msg[i].podaci[0] != 1 || msg[i].podaci[1] != 2 || msg[i].podaci[2] != 3)
+      printf("%d %d\n", i, msg[i].index);
+   }
   
-  printf("Received everything\n");
+  printf("Received all %d\n", count);
+  
+  
+  /*for(int i = 0; i<bigp; i++) {
+    printf("%d Got %d (%c), caller: %d\n", i, bigbuf[i], bigbuf[i], caller[i]);
+  }
+  */  
+    
   printf("!end!\n");
   
 

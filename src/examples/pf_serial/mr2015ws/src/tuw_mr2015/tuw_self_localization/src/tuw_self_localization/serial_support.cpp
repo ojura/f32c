@@ -40,7 +40,7 @@ int receiveToken(const char *synctoken) {
 
 int syncFPGA() {
     int synced = 0;
-    int i = 0;
+    int i = -1;
     
     while(!synced) {
         RS232_flushRXTX(cport_nr);
