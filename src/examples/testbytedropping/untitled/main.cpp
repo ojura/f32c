@@ -17,9 +17,10 @@ int main() {
 
     msg.podaci[0] = 1; msg.podaci[1] = 2; msg.podaci[2] = 3;
     
-    for(char i = 0; i < 100; i++) {
+    for(char i = 0; i < 150; i++) {
       msg.index = i;
       sendFPGAstruct(msg);      
+      getFPGAmsg();
     }
     
     getFPGAmsg();

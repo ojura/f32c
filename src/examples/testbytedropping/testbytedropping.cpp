@@ -94,7 +94,7 @@ bool sync_serial() {
   return true;
 }
 
-struct { int index; int podaci[3]; } msg[200];
+struct { int index; int podaci[3]; } msg[10000];
 
 void main(void)
 {
@@ -107,11 +107,12 @@ void main(void)
 
  //eventPress();
   
-  int count = 100;
+  int count = 150;
   
   for(int i=0; i<count; i++) {
 //    curcaller = 100;
     readstruct(msg[i]);
+    printf("Got %d\n!end!\n", i);
   }
  
   printf("Hello! %d\n",i);
