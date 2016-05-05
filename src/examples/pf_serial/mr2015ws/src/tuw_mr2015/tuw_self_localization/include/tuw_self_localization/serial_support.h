@@ -15,7 +15,7 @@ extern int cport_nr;
 void sendInt(unsigned int p);
 int receiveInt();
 int receiveToken(const char *synctoken);
-void syncFPGA();
+int syncFPGA();
 bool initComport();
 unsigned char FPGAgetchar();
 void getFPGAmsg();

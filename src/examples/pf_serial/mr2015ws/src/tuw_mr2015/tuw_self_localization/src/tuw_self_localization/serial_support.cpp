@@ -38,15 +38,18 @@ int receiveToken(const char *synctoken) {
     return true;
 }
 
-void syncFPGA() {
+int syncFPGA() {
     int synced = 0;
-
+    int i = 0;
+    
     while(!synced) {
         RS232_flushRXTX(cport_nr);
         sendFPGAstring("sync");
         synced=receiveToken("sack");
         if(!synced) usleep(SYNCTIMEOUT);
+        i++;
     }
+    return i;
 
 }
 
