@@ -5,9 +5,9 @@
   //#define USEFIXED
   #define USEFPGA
 
-  #define READTIMEOUT (100*10)
-  #define WRITETIMEOUT (100*10)
-  #define SYNCTIMEOUT 100*100
+  #define READTIMEOUT (0)
+  #define WRITETIMEOUT (0)
+  #define SYNCTIMEOUT (1)
 #endif
 
 // valid baudrates: 3000000, 2500000, 2000000, 1500000, 1152000, 1000000,

@@ -23,7 +23,7 @@ int receiveToken(const char *synctoken) {
 
     while(p != 4) {
 
-        int tries = 15;
+        int tries = 150;
         while(RS232_PollComport(cport_nr, &c, 1) < 1 && tries) {
             usleep(READTIMEOUT);
             tries--;
