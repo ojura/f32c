@@ -20,7 +20,7 @@ int main() {
     for(int i = 0; i < 1500; i++) {
       msg.index = i;
       sendFPGAstruct(msg);      
-      //getFPGAmsg();
+     // if(i%200 == 0) getFPGAmsg();
     }
     
     getFPGAmsg();

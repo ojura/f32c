@@ -99,7 +99,7 @@ struct { int index; int podaci[3]; } msg[10000];
 void main(void)
 {
   
-  sio_setbaud(115200);
+  sio_setbaud(1500000);
 
   while(1) {
   int i = 0;
@@ -112,7 +112,7 @@ void main(void)
   for(int i=0; i<count; i++) {
 //    curcaller = 100;
     readstruct(msg[i]);
-    printf("Got %d\n", i);
+    //if(i % 200 == 0) printf("!end!\n");
   }
  
   printf("Hello! %d\n",i);
