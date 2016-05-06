@@ -38,7 +38,8 @@ inline void sendFPGAstruct(msg m) {
     int i = 0;  int cnt = 0;
     while (i < sizeof(m)) {
         cnt++;
-        i += RS232_SendBuf(cport_nr, (unsigned char *) &m + i, sizeof(m) - i);
+        int sentcount = RS232_SendBuf(cport_nr, (unsigned char *) &m + i, sizeof(m) - i);
+        i += (sentcount == -1) ? 0 : sentcount;
         if(i < sizeof(m)) usleep(WRITETIMEOUT);
     }
     if(cnt > 1) std::cout << "send: waited " << cnt << "times" << std::endl;
