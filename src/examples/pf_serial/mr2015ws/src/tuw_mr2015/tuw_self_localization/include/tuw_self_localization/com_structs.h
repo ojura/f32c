@@ -49,10 +49,12 @@ struct likelihoodLookupTable {
     
 #define com_measurement \
     member(fixed, length, fixed(beam.length) ); \
-    member(fixed, angle, fixed(beam.angle) ); \
     member(fixed, endpoint_x, fixed(beam.end_point.x()) ); \
     member(fixed, endpoint_y, fixed(beam.end_point.y()) ); \
 
+    
+    //member(fixed, angle, fixed(beam.angle) ); 
+    
 #define member(t,x,y) t x;
 
 // singleton structure for storing algorithm parameters
