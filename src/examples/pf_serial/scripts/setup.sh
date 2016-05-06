@@ -33,6 +33,9 @@ rm -rf binutils* gcc* mpc* mpfr* gmp*
 
 cd ../examples/pf_serial
 sudo -u $SUDO_USER ln -s "$(realpath scripts/mips.sh)" ~/mips.sh
+
+rosdep init
+sudo -u $SUDO_USER rosdep update
 echo
 echo "Everything finished. Please logout/login for dialout permissions to take effect."
 EOF
