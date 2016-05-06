@@ -83,6 +83,7 @@ void getFPGAmsg() {
                 std::cout << endtoken[i];
             endc = 0;
             std::cout << c;
+            std::cout.flush();
         }
     }
 }

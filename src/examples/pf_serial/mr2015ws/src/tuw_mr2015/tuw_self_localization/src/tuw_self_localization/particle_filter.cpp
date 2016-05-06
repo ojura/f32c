@@ -312,37 +312,44 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 #define member(t,x,y) msg_measurement.x = y
             com_measurement
 #undef member
-
+            
+            sendFPGAstruct(i);
             sendFPGAstruct(msg_measurement);
         }
 
         getFPGAmsg();
 
         // download samples
+        msgtype_sample msg_sample[samples.size()];
+        
+        
         syncFPGA();
         std::cout << "Synced for dsam" << std::endl;
-
         sendFPGAstring("dsam");
 
-        msgtype_sample msg_sample;
 
-        samples_weight_max_ = 0;
         for ( int i = 0; i < samples.size(); i++ ) {
+            readFPGAstruct(msg_sample[i]); 
+        }
+        
+        getFPGAmsg();
+            
+        samples_weight_max_ = 0;
+        for ( int i = 0; i < samples.size(); i++ ) {   
             const SamplePtr &s = samples[i];
-
-            readFPGAstruct(msg_sample);
-            s->fx_ = msg_sample.x;
-            s->fy_ = msg_sample.y;
-            s->ftheta_ = msg_sample.theta;
-            s->fweight_ = msg_sample.weight;
+            
+            s->fx_ = msg_sample[i].x;
+            s->fy_ = msg_sample[i].y;
+            s->ftheta_ = msg_sample[i].theta;
+            s->fweight_ = msg_sample[i].weight;
 
             // to the rest of the code, fixed numbers converted to doubles are exposed
             convertSampleToDouble(s);
 
-            if (s->weight() > samples_weight_max_) samples_weight_max_ = s->weight();
+            if (s->weight() > samples_weight_max_) samples_weight_max_ = s->weight(); 
         }
-
-        getFPGAmsg();
+        
+        
         // TODO more advanced methods of determining the best sample
         pose_estimated_ = *samples[0];
 

@@ -5,7 +5,8 @@
   //#define USEFIXED
   #define USEFPGA
 
-  #define READTIMEOUT (100)
+  #define READTIMEOUT (100*10)
+  #define WRITETIMEOUT (100*10)
   #define SYNCTIMEOUT 100*100
 #endif
 

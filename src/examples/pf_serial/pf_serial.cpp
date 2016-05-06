@@ -176,6 +176,7 @@ void resample() {
   } 
   
   else if(msg_params.resample_strategy == LOWVARIANCE) {
+    // FIXME currently broken!
     
     // destroying M samples like in the first algorithm == sampling N-M samples
     // M is now the number of samples to draw!
@@ -436,10 +437,15 @@ void main(void)
         
         printf("!end!\n");
         
+        unsigned int ii = -1;
+        bool seqError = false;
         for(unsigned int i = 0; i < allocated_measurements; i++) {
-          readstruct(measurement_mem[i]);             
+          readstruct(ii);
+          readstruct(measurement_mem[i]);
+          if(i != ii) seqError = true;
         }
         
+        if(seqError) printf("FPGA: Transmission error occured while receiving measurements!");
         
         //printf("Received %d measurements. First one: \n", allocated_measurements);
         //#define member(t,x,y) printf(#t " " #x " = "); print(measurement_mem[0].x); printf("\n")
