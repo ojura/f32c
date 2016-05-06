@@ -74,7 +74,7 @@ ifeq ($(LIB),c)
 	strstr.c strtol.c
 
  ifneq ($(ARCH),riscv)
-  CFILES += sio.c sio_baud.c setjmperr.c isr.c
+  CFILES += sio_poll.c sio_baud.c setjmperr.c isr.c
  else
   CFILES += sio_poll.c
  endif

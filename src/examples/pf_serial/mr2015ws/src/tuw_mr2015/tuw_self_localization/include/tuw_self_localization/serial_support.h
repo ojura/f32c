@@ -35,21 +35,24 @@ inline unsigned char FPGAgetchar() {
 
 template<class msg>
 inline void sendFPGAstruct(msg m) {
-    RS232_SendBuf(cport_nr, (unsigned char *) &m, sizeof(m));
+    int i = 0;  int cnt = 0;
+    while (i < sizeof(m)) {
+        cnt++;
+        i += RS232_SendBuf(cport_nr, (unsigned char *) &m + i, sizeof(m) - i);
+        if(i < sizeof(m)) usleep(WRITETIMEOUT);
+    }
+    if(cnt > 1) std::cout << "send: waited " << cnt << "times" << std::endl;
 }
 
 template<class msg>
 inline void readFPGAstruct(msg &m) {
-
-    //int i;
-    //for(i = 0; i < sizeof(m); i++ ) {
-    //    *(((unsigned char *) &m) + i) = FPGAgetchar();
-    //}
-    int i = 0;
+    int i = 0; int cnt = 0;
     while (i < sizeof(m)) {
+        cnt++;
         i += RS232_PollComport(cport_nr, (unsigned char *) &m + i, sizeof(m) - i);
-        usleep(READTIMEOUT);
+        if(i < sizeof(m)) usleep(READTIMEOUT);
     }
+    if(cnt > 1) std::cout << "read: waited " << cnt << "times" << std::endl;
 }
 
 inline void sendFPGAstring(const char *m) {
