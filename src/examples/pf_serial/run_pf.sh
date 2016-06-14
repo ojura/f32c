@@ -1,6 +1,6 @@
 #!/bin/bash
 
-make && ujprog -r -e pf_serial.bin 
+make && ujprog ../../../rtl/proj/lattice/ulx2s/sram_pf/impl1/ulx2s_sram_pf_impl1.jed -e pf_serial.bin 
 
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink

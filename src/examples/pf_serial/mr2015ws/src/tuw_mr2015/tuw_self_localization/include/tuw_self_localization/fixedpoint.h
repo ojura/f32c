@@ -7,6 +7,7 @@
   #include <tuw_self_localization/config.h>
 #else
   #include "config.h"
+  #include <mips/io.h>
 #endif 
 
 
@@ -253,40 +254,65 @@ struct lfsr {
 };
 
 struct gaussian_random{
+  
+    #ifndef PF_SLAVE
     lfsr lfsrs[4];
-    
-    gaussian_random() {
-        lfsrs[0] = 0x2996EF15;
-        lfsrs[1] = 0x70630F8F;
-        lfsrs[2] = 0x59C2ED18;
-        lfsrs[3] = 0x291945;
+    #endif
+  
+    gaussian_random() {      
+      #ifdef PF_SLAVE
+      // reset lfsr init counter
+      OUTW(IO_GAUSS, 0x0);
+      // init LFSRs
+      OUTW(IO_GAUSS+(1<<2), 0x2996EF15);
+      OUTW(IO_GAUSS+(1<<2), 0x70630F8F);
+      OUTW(IO_GAUSS+(1<<2), 0x59C2ED18);
+      OUTW(IO_GAUSS+(1<<2), 0x291945);
+      
+      
+      // Sanity test
+      if( generate(fixed(0), fixed(1)).val != (signed int) 0xfffac301 ) {
+          printf("HW Gauss is not working properly!\n");
+          while(true) { };
+      }
+
+      #else
+      // software implementation
+      lfsrs[0] = 0x2996EF15;
+      lfsrs[1] = 0x70630F8F;
+      lfsrs[2] = 0x59C2ED18;
+      lfsrs[3] = 0x291945; 
+      #endif
+        
     }
     
-    fixed generate(fixed mi, fixed sigma) {
+    inline fixed generate(fixed mi, fixed sigma) {
 #ifdef PF_SLAVE
-      //int time, time2; RDTSC(time);
-#endif
+      int time, time2; RDTSC(time);
+      fixed r;
+      OUTW(IO_GAUSS+(2<<2), mi.val);
+      OUTW(IO_GAUSS+(3<<2), sigma.val);    
+      INW(r, IO_GAUSS);
+      RDTSC(time2);
+      printf("FPGA: Cycles used on gauss.generate(): %d\n", time2-time);
+#else
       
-        int rands[4];
-        int sum = 0;
-        for(int i = 0; i<4; i++) {
-            rands[i] = lfsrs[i].generate31();
-            // extend sign
-            rands[i] <<= 2; rands[i] >>= 2;
-            
-            sum += rands[i];
-        }
-        
-        fixed r;
-        r.val = sum;
-        
-        r = r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi;
-        
-   
-#ifdef PF_SLAVE
-      //RDTSC(time2);
-      //printf("FPGA: Cycles used on gauss.generate(): %d\n", time2-time);
+      int rands[4];
+      int sum = 0;
+      for(int i = 0; i<4; i++) {
+          rands[i] = lfsrs[i].generate31();
+          // extend sign
+          rands[i] <<= 2; rands[i] >>= 2;
+          
+          sum += rands[i];
+      }
+      
+      fixed r;
+      r.val = sum;
+      
+      r = r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi;
 #endif
+
       return r;
     }
     
