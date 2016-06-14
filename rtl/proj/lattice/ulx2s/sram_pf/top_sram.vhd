@@ -87,6 +87,7 @@ entity glue is
 	C_framebuffer: boolean := false;
 	C_lfsr: boolean := false;
 	C_gauss: boolean := true;
+	C_fsin: boolean := true;
 	C_pcm: boolean := false;
 	C_timer: boolean := false;
 	C_tx433: boolean := false; -- set (C_framebuffer := false, C_dds := false) for 433MHz transmitter
@@ -166,9 +167,9 @@ architecture Behavioral of glue is
     signal cpu_to_io, io_to_cpu: std_logic_vector(31 downto 0);
     signal from_flash, from_sdcard, from_sio: std_logic_vector(31 downto 0);
     signal sio_txd, sio_ce, sio_break: std_logic;
-    signal flash_ce, sdcard_ce, lfsr_ce, gauss_ce: std_logic;
-    signal from_lfsr, from_gauss: std_logic_vector(31 downto 0);
-    signal lfsr_ready, gauss_ready: std_logic;
+    signal flash_ce, sdcard_ce, lfsr_ce, gauss_ce, fsin_ce: std_logic;
+    signal from_lfsr, from_gauss, from_fsin: std_logic_vector(31 downto 0);
+    signal lfsr_ready, gauss_ready, fsin_ready: std_logic;
     signal io_addr_strobe: std_logic_vector((C_io_ports - 1) downto 0);
     signal next_io_port: integer range 0 to (C_io_ports - 1);
     signal R_cur_io_port: integer range 0 to (C_io_ports - 1);
@@ -381,7 +382,17 @@ begin
     gauss_ce <= io_addr_strobe(R_cur_io_port) when
       io_addr(11 downto 4) = x"59" else '0';
     end generate;
-
+	
+	
+	G_fsin: if C_fsin generate fsin: entity work.fsin
+	  port map (
+		clk => clk, ce => fsin_ce,
+		bus_out => from_fsin, bus_write => io_write, bus_in => cpu_to_io, fsin_ready => fsin_ready
+      );
+    fsin_ce <= io_addr_strobe(R_cur_io_port) when
+      io_addr(11 downto 4) = x"5A" else '0';
+	end generate;
+	  
     -- Memory map:
     -- 0x0*******: (4B, RW) : Embedded block RAM (2 - 16 KBytes, fast)
     -- 0x8*******: (4B, RW) : External static RAM (1 MByte, slow)
@@ -563,7 +574,13 @@ begin
 		io_to_cpu <= from_gauss;
 	    else
 		io_to_cpu <= (others => '-');
-	    end if;		
+	    end if;
+	when x"5A"  =>
+		if C_gauss then
+		io_to_cpu <= from_fsin;
+	    else
+		io_to_cpu <= (others => '-');
+	    end if;
 	when others =>
 	    io_to_cpu <= (others => '-');
 	end case;
@@ -645,7 +662,9 @@ begin
 			if io_addr(11 downto 4) = x"58" and C_lfsr then
 				dmem_data_ready(cpu) <= lfsr_ready;
 			elsif io_addr(11 downto 4) = x"59" and C_gauss then
-				dmem_data_ready(cpu) <= gauss_ready;				
+				dmem_data_ready(cpu) <= gauss_ready;
+			elsif io_addr(11 downto 4) = x"5A" and C_fsin then
+				dmem_data_ready(cpu) <= fsin_ready;
 			else
 				dmem_data_ready(cpu) <= '1';
 			end if;

@@ -3,6 +3,98 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
+package fixed_point is
+constant C_fracpart : integer := 20;
+subtype fixed is signed(31 downto 0);
+function mul_fixed(x, y : fixed) return fixed;
+function ftrig(x : fixed; cos : boolean) return fixed;
+end fixed_point;
+
+package body fixed_point is
+
+function mul_fixed(x, y : fixed) return fixed is
+begin
+	return (x*y)(31 + C_fracpart downto C_fracpart);
+end mul_fixed;
+
+-- 5th order sine approximation adapted from fixedpoint.h
+function ftrig(x : fixed; cos : boolean) return fixed is
+variable x1, x2, y : fixed;
+constant shift1 : integer := 4;
+
+constant B : fixed := to_signed(16#243f6a#, 32);  -- (M_PI - 3) << shift1
+constant C : fixed := to_signed(16#1487ed5#, 32); -- (2*M_PI - 5) << shift1
+constant D : fixed := to_signed(16#3243f6a#, 32); -- M_PI << shift1
+
+constant qN : integer := C_fracpart;
+constant INV_PI : fixed := to_signed(16#a2f983#, 32);
+
+begin
+    x1 := mul_fixed(x, INV_PI);
+    
+    x1 := shift_left(x1,(30-qN-shift1)); -- shift to full s32 range
+    
+    if(cos) then 
+		x1 := x1 + shift_left(to_signed(1, 32), 30);
+	end if;
+    
+    if (x1(31) xor x1(30)) = '1' then     -- test for quadrant 1 or 2
+        x1 := shift_left(to_signed(1, 32), 31) - x1;
+    end if;
+	
+    x1 := shift_right(x1, (30-qN-shift1));
+    
+    x2 := mul_fixed(x1, x1);
+    x2 := shift_right(x2, shift1);
+    y := C - shift_right(mul_fixed(x2,B), shift1);
+    y := D - shift_right(mul_fixed(x2,y), shift1);
+    y := mul_fixed(x1, y);
+    
+    return shift_right(y, (2*shift1+1));
+
+end ftrig;
+end fixed_point;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
+use work.fixed_point.all;
+
+entity fsin is
+    port (
+	ce, clk: in std_logic;
+	bus_in: in std_logic_vector(31 downto 0);
+	bus_write: in std_logic;
+	bus_out: out std_logic_vector(31 downto 0);
+	fsin_ready: out std_logic
+    );
+end fsin;
+
+architecture x of fsin is
+    signal R_x: std_logic_vector(31 downto 0);
+begin
+
+    process(clk)
+    begin
+    if rising_edge(clk) then	
+		if ce = '1' and bus_write = '1' then
+			R_x <= bus_in;
+		end if;
+    end if;
+    end process;
+
+	fsin_ready <= '1';
+    bus_out <= std_logic_vector(ftrig(fixed(R_x), false));
+	
+end x;
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
+
 entity lfsr is
     port (
 	ce, clk: in std_logic;
@@ -47,6 +139,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
+use work.fixed_point.all;
 
 entity gauss is
     port (
@@ -62,9 +155,6 @@ end gauss;
 
 architecture x of gauss is
 constant C_num_lfsrs : integer := 4;
-constant C_fracpart : integer := 20;
-
-subtype fixed is signed(31 downto 0);
 
 type lfsr_ce_array is array(C_num_lfsrs-1 downto 0) of std_logic;
 type from_lfsr_array is array(C_num_lfsrs-1 downto 0) of std_logic_vector(31 downto 0);
@@ -85,7 +175,6 @@ begin
 	
 	-- enable shifting all LFSRs when reading, enable only one when initializing
 	lfsr_ce <= lfsr_decoded when ce = '1' and addr = "01" and bus_write = '1' else "1111" when ce = '1' and bus_write ='0' else "0000";
-
 
 	process(clk) 
 	begin
@@ -129,8 +218,8 @@ begin
 		sum := signed(uniforms(0) + uniforms(1) + uniforms(2) + uniforms(3));
 		--r = r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi; 
 		
-		r :=  (R_arg_stdev * norm)(31+ C_fracpart + 2 downto C_fracpart + 2);
-		r := (sum * r)(31+ C_fracpart downto C_fracpart) + R_arg_mean;
+		r :=  (R_arg_stdev * norm)(31 + C_fracpart + 2 downto C_fracpart + 2);
+		r := (sum * r)(31 + C_fracpart downto C_fracpart) + R_arg_mean;
 		bus_out <= r;
 		
 	end process;

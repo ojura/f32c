@@ -29,7 +29,7 @@ static const char *arch = "unknown";
 
 #define	BTN_ANY	(BTN_CENTER | BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT)
 
-#define IO_LFSR IO_ADDR(0x580)
+#define IO_FSIN IO_ADDR(0x5A0)
 
 
 ////////////////
@@ -77,8 +77,16 @@ main(void)
   printf("!Hello, f32c/%s world!\n", arch);
      
   
-  for(int i = 0; i < 10; i++) {    
-    printf("%d HW: %x \n", i, gauss.generate(fixed(0), fixed(1)).val );
+  for(int i = 0; i < 10; i++) { 
+    fixed a = fixed(i*0.1);
+    fixed r;
+    printf("SW %lf %lf\n", double(a), double(fsin(a)));
+    OUTW(IO_FSIN, a.val);
+    INW(r.val, IO_FSIN);
+    printf("HW %lf %lf\n", double(a), double(r));
+    printf("-----------------\n");
+    
+    
   }
   
   while(true) { };
