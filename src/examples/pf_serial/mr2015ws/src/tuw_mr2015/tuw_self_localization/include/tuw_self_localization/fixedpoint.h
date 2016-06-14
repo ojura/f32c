@@ -187,10 +187,10 @@ fixed inline isin_S4(fixed x) {
     return r; 
 }
 
-fixed inline fsin(fixed x) {
+fixed inline ftrig(fixed x, bool cos = false) {
     fixed x2, y;
     const int shift1 = 4;
-    const fixed B= fixed(M_PI-3) << shift1, C=fixed(2*M_PI-5) << shift1, D = fixed(M_PI) << shift1;
+    const fixed B = fixed((M_PI-3) * (1 << shift1)), C=fixed((2*M_PI-5) * (1 << shift1)), D = fixed(M_PI * (1 << shift1));
     int qN = 20;
     
     const fixed INV_PI = fixed((1<<(shift1+1))/M_PI  );
@@ -200,6 +200,8 @@ fixed inline fsin(fixed x) {
     
     
     x1= x1<<(30-qN-shift1);          // shift to full s32 range
+    
+    if(cos) x1 += 1<<30;
     
     if( (x1^(x1<<1)) < 0)     // test for quadrant 1 or 2
         x1= (1<<31) - x1;
@@ -216,80 +218,59 @@ fixed inline fsin(fixed x) {
     return y >> (2*shift1+1);
 }
 
+fixed inline fsin(fixed x) {
+  return ftrig(x, false); }
+
 fixed inline fcos(fixed x) {
-    fixed x2, y;
-    const int shift1 = 4;
-    const fixed B= fixed(M_PI-3) << shift1, C=fixed(2*M_PI-5) << shift1, D = fixed(M_PI) << shift1;
-    int qN = 20;
+  return ftrig(x, true); }
     
-    const fixed INV_PI = fixed((1<<(shift1+1))/M_PI  );
-    
-    fixed fx1 = x*INV_PI;
-    int x1 = fx1.val;
-    
-    
-    x1= x1<<(30-qN-shift1);          // shift to full s32 range
-    
-    
-    x1 += 1<<30;
-    
-    
-    if( (x1^(x1<<1)) < 0)     // test for quadrant 1 or 2
-        x1= (1<<31) - x1;
-    
-    x1= x1>>(30-qN-shift1);
-    x.val = x1;
-    
-    x2 = x*x; // x=x^2 To Q14
-    x2 = x2 >> shift1;
-    y= C  - ((x2*B)>>shift1);
-    y= D - ((x2*y)>>shift1);
-    y= x * y ;
-    
-    return y >> (2*shift1+1);
-}
+
 
 struct lfsr {
+    // 31 bit LFSR
     int state;
     
     lfsr() { };
     
-    lfsr(int seed) : state(seed) { };
+    lfsr(int seed) : state(seed & ~(1<<31)) { };
     
     void update() {
         int bit = ~((state >> 0) ^ (state >> 3)) & 1;
-        state = ((state >> 1) & ~(1<<31))  | (bit << 31); }
+        state = ((state >> 1) & ~(1<<30))  | (bit << 30); }
         
-        fixed generate() {
-            // generate a random number in [0, 1]
-            for (int j = 0; j < 32; j++)
-                update();        
-            return fixed((state & ~(1<<(FIXED_INTPART+FIXED_FRACPART-1))) >> (FIXED_INTPART-1), true);
-        }
-        int generate32() {
-            for (int j = 0; j < 32; j++)
-                update();        
-            return state;
-        }
+    fixed generate() {
+        // generate a random number in [0, 1]
+        for (int j = 0; j < 31; j++)
+            update();        
+        return fixed((state & ~(1<<(FIXED_INTPART+FIXED_FRACPART-1))) >> (FIXED_INTPART-1), true);
+    }
+    int generate31() {
+      int oldstate = state;
+        for (int j = 0; j < 31; j++)
+            update();        
+        return oldstate;
+    }
 };
 
 struct gaussian_random{
     lfsr lfsrs[4];
     
     gaussian_random() {
-        lfsrs[0] = 697757461;
-        lfsrs[1] = 1885540239;
-        lfsrs[2] = 1505946904;
-        lfsrs[3] = 2693445;
+        lfsrs[0] = 0x2996EF15;
+        lfsrs[1] = 0x70630F8F;
+        lfsrs[2] = 0x59C2ED18;
+        lfsrs[3] = 0x291945;
     }
     
     fixed generate(fixed mi, fixed sigma) {
+#ifdef PF_SLAVE
+      //int time, time2; RDTSC(time);
+#endif
+      
         int rands[4];
         int sum = 0;
         for(int i = 0; i<4; i++) {
-            for (int j = 0; j < 32; j++)
-                lfsrs[i].update();
-            rands[i] = lfsrs[i].state;
+            rands[i] = lfsrs[i].generate31();
             // extend sign
             rands[i] <<= 2; rands[i] >>= 2;
             
@@ -299,8 +280,14 @@ struct gaussian_random{
         fixed r;
         r.val = sum;
         
-        return r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi; //fixed(0.001502508851200);
+        r = r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi;
         
+   
+#ifdef PF_SLAVE
+      //RDTSC(time2);
+      //printf("FPGA: Cycles used on gauss.generate(): %d\n", time2-time);
+#endif
+      return r;
     }
     
 };
