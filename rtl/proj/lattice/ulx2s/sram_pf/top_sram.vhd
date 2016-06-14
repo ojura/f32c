@@ -81,11 +81,13 @@ entity glue is
 	C_psram_refresh: boolean := true;
 	C_sio: boolean := true;
 	C_leds_btns: boolean := true;
-	C_gpio: boolean := true;
+	C_gpio: boolean := false;
 	C_flash: boolean := true;
 	C_sdcard: boolean := true;
-	C_framebuffer: boolean := true;
-	C_pcm: boolean := true;
+	C_framebuffer: boolean := false;
+	C_lfsr: boolean := false;
+	C_gauss: boolean := true;
+	C_pcm: boolean := false;
 	C_timer: boolean := false;
 	C_tx433: boolean := false; -- set (C_framebuffer := false, C_dds := false) for 433MHz transmitter
 	C_dds: boolean := false
@@ -164,7 +166,9 @@ architecture Behavioral of glue is
     signal cpu_to_io, io_to_cpu: std_logic_vector(31 downto 0);
     signal from_flash, from_sdcard, from_sio: std_logic_vector(31 downto 0);
     signal sio_txd, sio_ce, sio_break: std_logic;
-    signal flash_ce, sdcard_ce: std_logic;
+    signal flash_ce, sdcard_ce, lfsr_ce, gauss_ce: std_logic;
+    signal from_lfsr, from_gauss: std_logic_vector(31 downto 0);
+    signal lfsr_ready, gauss_ready: std_logic;
     signal io_addr_strobe: std_logic_vector((C_io_ports - 1) downto 0);
     signal next_io_port: integer range 0 to (C_io_ports - 1);
     signal R_cur_io_port: integer range 0 to (C_io_ports - 1);
@@ -353,6 +357,31 @@ begin
       io_addr(11 downto 4) = x"35" else '0';
     end generate;
 
+    --
+    -- LFSR
+    --
+    G_lfsr:
+    if C_lfsr generate
+    lfsr: entity work.lfsr
+    port map (
+	clk => clk, ce => lfsr_ce, addr => io_addr(2),
+	bus_out => from_lfsr, bus_write => io_write, bus_in => cpu_to_io, lfsr_ready => lfsr_ready
+    );
+    lfsr_ce <= io_addr_strobe(R_cur_io_port) when
+      io_addr(11 downto 4) = x"58" else '0';
+	end generate;
+	
+	G_gauss:
+	if C_gauss generate
+	gauss: entity work.gauss
+	  port map (
+		clk => clk, ce => gauss_ce, addr => io_addr(3 downto 2),
+		bus_out => from_gauss, bus_write => io_write, bus_in => cpu_to_io, gauss_ready => gauss_ready
+      );
+    gauss_ce <= io_addr_strobe(R_cur_io_port) when
+      io_addr(11 downto 4) = x"59" else '0';
+    end generate;
+
     -- Memory map:
     -- 0x0*******: (4B, RW) : Embedded block RAM (2 - 16 KBytes, fast)
     -- 0x8*******: (4B, RW) : External static RAM (1 MByte, slow)
@@ -371,6 +400,8 @@ begin
     -- 0xf****BA4: (4B, WR) : PCM audio DMA last addr
     -- 0xf****BA8: (3B, WR) : PCM audio DMA refill frequency (sampling rate)
     -- 0xf****D20: (2B, WR) : Lego Power Functions Infrared Controller
+    -- 0xf****D80: (4B, RD) : LFSR Jura
+	-- 0xf****D90: (4B, RD) : Gauss
     -- 0xf****F00: (4B, RW) : simple I/O: switches, buttons (RD), LED, LCD (WR)
     -- 0xf****FF0: (1B, WR) : CPU reset bitmap
 
@@ -521,6 +552,18 @@ begin
 	    else
 		io_to_cpu <= (others => '-');
 	    end if;
+	when x"58"  =>
+	    if C_lfsr then
+		io_to_cpu <= from_lfsr;
+	    else
+		io_to_cpu <= (others => '-');
+	    end if;
+	when x"59"  =>
+	    if C_gauss then
+		io_to_cpu <= from_gauss;
+	    else
+		io_to_cpu <= (others => '-');
+	    end if;		
 	when others =>
 	    io_to_cpu <= (others => '-');
 	end case;
@@ -577,7 +620,7 @@ begin
     --
     process(imem_addr, dmem_addr, dmem_byte_sel, cpu_to_dmem, dmem_write,
       dmem_addr_strobe, imem_addr_strobe, fb_addr_strobe, fb_addr,
-      sram_ready, io_to_cpu, from_sram)
+      sram_ready, io_to_cpu, from_sram, lfsr_ready)
 	variable data_port, instr_port, fb_port, pcm_port: integer;
 	variable refresh_port: integer;
 	variable sram_data_strobe, sram_instr_strobe: std_logic;
@@ -599,7 +642,13 @@ begin
 		-- CPU, data bus
 		if io_addr_strobe(cpu) = '1' then
 		    if R_cur_io_port = cpu then
-			dmem_data_ready(cpu) <= '1';
+			if io_addr(11 downto 4) = x"58" and C_lfsr then
+				dmem_data_ready(cpu) <= lfsr_ready;
+			elsif io_addr(11 downto 4) = x"59" and C_gauss then
+				dmem_data_ready(cpu) <= gauss_ready;				
+			else
+				dmem_data_ready(cpu) <= '1';
+			end if;
 		    else
 			dmem_data_ready(cpu) <= '0';
 		    end if;
