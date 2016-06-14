@@ -215,7 +215,7 @@ void resample() {
   /// update number of samples by adding new ones from randomly chosen
   while ( allocated_samples > used_samples ) {
     
-    int p = uniform.generate32();
+    int p = uniform.generate31();
     size_t j = 0;
     j = p % used_samples;
     newNormalSample(samples_mem[used_samples], samples_mem[j], sigma_position, sigma_orientation);
@@ -239,7 +239,7 @@ void weighting () {
     
     for (unsigned int i = allocated_measurements-1; i >= 0; --i) {
       //generate a random number [0, n-1]
-      unsigned int j = uniform.generate32() % (i+1);
+      unsigned int j = uniform.generate31() % (i+1);
       
       //swap the last element with element at random index
       int temp = all_beams_permutation[i];
