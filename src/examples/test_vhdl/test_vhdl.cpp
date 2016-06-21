@@ -67,28 +67,32 @@ inline void eventClick() {
 lfsr lfsrs[4];
 gaussian_random gauss;
 
+void dbg(int i) {
+    fixed a = fixed(i*0.1*M_PI);
+    fixed r;
+    printf("SW sin %lf %lf\n", double(i * 0.1), double(cos(double(a))));
+    //printf("SW fsin %lf %lf\n", double(i*0.1), double(fsin(a)));
+    OUTW(IO_FSIN+4, a.val);
+    INW(r.val, IO_FSIN+4);
+    printf("HW %lf %lf\n",  double(i*0.1), r.val / double( pow(2.0, 31) ) );
+}
+
+
 void
 main(void)
 {
   eventClick();
   
   sio_setbaud(COM_BAUDRATE);
-  
   printf("!Hello, f32c/%s world!\n", arch);
-     
-  
-  for(int i = 0; i < 10; i++) { 
-    fixed a = fixed(i*0.1);
-    fixed r;
-    printf("SW %lf %lf\n", double(a), double(fsin(a)));
-    OUTW(IO_FSIN, a.val);
-    INW(r.val, IO_FSIN);
-    printf("HW %lf %lf\n", double(a), double(r));
+
+  for(int i = -21; i < 21; i++) { 
+    dbg(i);
     printf("-----------------\n");
-    
-    
   }
-  
+  for (int j = 0; j < 4; j++)
+    dbg(10);
+    
   while(true) { };
 }
 

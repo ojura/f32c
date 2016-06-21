@@ -6,6 +6,7 @@ use ieee.numeric_std.all;
 package fixed_point is
 constant C_fracpart : integer := 20;
 subtype fixed is signed(31 downto 0);
+constant INV_PI : fixed := to_signed(16#517CC1B#, 32);
 function mul_fixed(x, y : fixed) return fixed;
 function ftrig(x : fixed; cos : boolean) return fixed;
 end fixed_point;
@@ -27,10 +28,9 @@ constant C : fixed := to_signed(16#1487ed5#, 32); -- (2*M_PI - 5) << shift1
 constant D : fixed := to_signed(16#3243f6a#, 32); -- M_PI << shift1
 
 constant qN : integer := C_fracpart;
-constant INV_PI : fixed := to_signed(16#a2f983#, 32);
 
 begin
-    x1 := mul_fixed(x, INV_PI);
+    x1 := (x*INV_PI)(59 downto 28);
     
     x1 := shift_left(x1,(30-qN-shift1)); -- shift to full s32 range
     
@@ -66,26 +66,60 @@ entity fsin is
 	ce, clk: in std_logic;
 	bus_in: in std_logic_vector(31 downto 0);
 	bus_write: in std_logic;
+	addr: in std_logic;
 	bus_out: out std_logic_vector(31 downto 0);
 	fsin_ready: out std_logic
     );
 end fsin;
 
 architecture x of fsin is
-    signal R_x: std_logic_vector(31 downto 0);
+	signal res: fixed;
+	signal R_theta, theta, theta_cos: std_logic_vector(12 downto 0);
+	signal clken_sincos: std_logic;
+	
+	signal sin : signed( 15 downto 0);
+	
+	constant wait_cycles : integer := 0; 
+	
+	signal R_wait : integer range 0 to wait_cycles;
 begin
+
+	theta <= std_logic_vector( shift_right((signed(bus_in) * INV_PI), 49-13)(12 downto 0) );
+	theta_cos <= (theta(12 downto 11) + 1) & theta(10 downto 0);
 
     process(clk)
     begin
     if rising_edge(clk) then	
+		if wait_cycles > 0 and R_wait < wait_cycles then
+			R_wait <= R_wait + 1;
+		end if;
 		if ce = '1' and bus_write = '1' then
-			R_x <= bus_in;
+	
+			if addr = '0' then 
+				R_theta <= theta;
+			else
+				R_theta <= theta_cos;
+			end if;
+			
+			if wait_cycles > 0 then R_wait <= 0; end if;
 		end if;
     end if;
-    end process;
+	end process;
+	
+	fsin_ready <= '1' when wait_cycles = 0 or R_wait = wait_cycles else '0';
 
-	fsin_ready <= '1';
-    bus_out <= std_logic_vector(ftrig(fixed(R_x), false));
+    --bus_out <= std_logic_vector(ftrig(fixed(R_x), false));
+
+	--bus_out <= "0000000000000000000000" & theta;
+	
+	bus_out <= std_logic_vector(sin) & x"0000";
+	
+	clken_sincos <= ce and bus_write;
+	
+-- parameterized module component instance
+   I_sincos: entity work.sintab
+	 generic map ( pipestages => 0 )
+     port map (clk=>clk, theta=> R_theta, sine=>sin);
 	
 end x;
 
@@ -148,8 +182,7 @@ entity gauss is
 	bus_in: in std_logic_vector(31 downto 0);
 	bus_write: in std_logic;
 	bus_out: out std_logic_vector(31 downto 0);
-	gauss_ready: out std_logic;
-	led: out std_logic_vector(7 downto 0)
+	gauss_ready: out std_logic
     );
 end gauss;
 
@@ -187,8 +220,8 @@ begin
 			case addr is
 				when "00" => R_lfsr_write_counter <= "00";
 				when "01" => R_lfsr_write_counter <= R_lfsr_write_counter + 1;
-				when "10" => R_arg_mean <= bus_in;
-				when "11" => R_arg_stdev <= bus_in;
+				when "10" => R_arg_mean <= fixed(bus_in);
+				when "11" => R_arg_stdev <= fixed(bus_in);
 			end case;
 		end if;		
 	end if;
@@ -233,8 +266,6 @@ begin
 	bus_out => from_lfsr(i), bus_write => bus_write, bus_in => bus_in, lfsr_ready => open
     );
    end generate;
-   
-   led <= "000000" & std_logic_vector(R_lfsr_write_counter);
 
 end x;
 

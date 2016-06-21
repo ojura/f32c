@@ -387,7 +387,7 @@ begin
 	G_fsin: if C_fsin generate fsin: entity work.fsin
 	  port map (
 		clk => clk, ce => fsin_ce,
-		bus_out => from_fsin, bus_write => io_write, bus_in => cpu_to_io, fsin_ready => fsin_ready
+		bus_out => from_fsin, bus_write => io_write, bus_in => cpu_to_io, fsin_ready => fsin_ready, addr => io_addr(2)
       );
     fsin_ce <= io_addr_strobe(R_cur_io_port) when
       io_addr(11 downto 4) = x"5A" else '0';
@@ -576,7 +576,7 @@ begin
 		io_to_cpu <= (others => '-');
 	    end if;
 	when x"5A"  =>
-		if C_gauss then
+		if C_fsin then
 		io_to_cpu <= from_fsin;
 	    else
 		io_to_cpu <= (others => '-');
