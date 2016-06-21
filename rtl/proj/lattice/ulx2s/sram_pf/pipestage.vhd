@@ -22,100 +22,99 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity slv_pipestage is
-  generic (
-    n_stages: natural  := 1
-  );
-  Port ( 
-    clk: in  std_logic;
-    ce:  in  std_logic := '1';
-    rst: in  std_logic := '0';
+--entity slv_pipestage is
+  --generic (
+    --n_stages: natural  := 1
+  --);
+  --Port ( 
+    --clk: in  std_logic;
+    --ce:  in  std_logic := '1';
+    --rst: in  std_logic := '0';
     
-    i:   in  std_logic_vector;
-    o:   out std_logic_vector
-    );
-end slv_pipestage;
+    --i:   in  std_logic_vector;
+    --o:   out std_logic_vector
+    --);
+--end slv_pipestage;
+
+--architecture rtl of slv_pipestage is
 
 
-architecture rtl of slv_pipestage is
-
-
--- copy a std_logic value to all locations of a variable size std_logic_vector.
-function blow_up(b: std_logic; s: integer) return std_logic_vector is
-  variable r: std_logic_vector(s-1 downto 0);
-begin
-  for n in 0 to s-1 loop
-    r(n) := b;
-  end loop;
-  return r;
-end;
-
-
-
-begin
-
-assert i'length = o'length
-  report "slv_pipestage: input and output length do not match: "
-       & integer'image(i'length)
-       & " vs. "
-       & integer'image(o'length)
-  severity error;
-
-
-ns0: if n_stages = 0 
-generate
-begin
-  o <= i;
-end generate;
-
-
-ns1: if n_stages = 1
-generate
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-        o <= blow_up('0', o'length);
-      elsif ce = '1'
-      then
-        o <= i;
-      end if;
-    end if; -- rising_edge()
-  end process;
-end generate;
+---- copy a std_logic value to all locations of a variable size std_logic_vector.
+--function blow_up(b: std_logic; s: integer) return std_logic_vector is
+  --variable r: std_logic_vector(s-1 downto 0);
+--begin
+  --for n in 0 to s-1 loop
+    --r(n) := b;
+  --end loop;
+  --return r;
+--end;
 
 
 
-ns2: if n_stages >= 2
-generate 
-  type bla is array(0 to n_stages-1) of	std_logic_vector(i'range); 
-	signal reg: bla;   
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-        for n in reg'range loop
-          reg(n) <= blow_up('0', o'length); -- other doesn't work here :-(
-			  end loop;
-      elsif ce = '1'
-      then
-        reg(0) <= i;
-				for n in 1 to n_stages-1 loop
-					reg(n) <= reg(n-1);
-				end loop;
-       end if;
-    end if; -- rising_edge()
-  end process;
-  o <= reg(n_stages-1);
-end generate;
+--begin
 
-end rtl;
+--assert i'length = o'length
+  --report "slv_pipestage: input and output length do not match: "
+       --& integer'image(i'length)
+       --& " vs. "
+       --& integer'image(o'length)
+  --severity error;
+
+
+--ns0: if n_stages = 0 
+--generate
+--begin
+  --o <= i;
+--end generate;
+
+
+--ns1: if n_stages = 1
+--generate
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+        --o <= blow_up('0', o'length);
+      --elsif ce = '1'
+      --then
+        --o <= i;
+      --end if;
+    --end if; -- rising_edge()
+  --end process;
+--end generate;
+
+
+
+--ns2: if n_stages >= 2
+--generate 
+  --type bla is array(0 to n_stages-1) of	std_logic_vector(i'range); 
+	--signal reg: bla;   
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+        --for n in reg'range loop
+          --reg(n) <= blow_up('0', o'length); -- other doesn't work here :-(
+			  --end loop;
+      --elsif ce = '1'
+      --then
+        --reg(0) <= i;
+				--for n in 1 to n_stages-1 loop
+					--reg(n) <= reg(n-1);
+				--end loop;
+       --end if;
+    --end if; -- rising_edge()
+  --end process;
+  --o <= reg(n_stages-1);
+--end generate;
+
+--end rtl;
 
 ----------------------------------------------------------------------------------------------------
 
@@ -214,83 +213,83 @@ end rtl;
 -- Nevertheless the compiler could see that whatever n_stages might be,
 -- it cannot be 1 AND 2 at the same time.
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.numeric_std.all;
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL;
+--use IEEE.numeric_std.all;
 
-entity bool_pipestage is
-  generic (
-    n_stages: natural  := 1
-  );
-  Port ( 
-    clk: in  std_logic;
-    ce:  in  std_logic := '1';
-    rst: in  std_logic;
+--entity bool_pipestage is
+  --generic (
+    --n_stages: natural  := 1
+  --);
+  --Port ( 
+    --clk: in  std_logic;
+    --ce:  in  std_logic := '1';
+    --rst: in  std_logic;
     
-    i:   in  boolean;
-    o:   out boolean
-  );
-end bool_pipestage;
+    --i:   in  boolean;
+    --o:   out boolean
+  --);
+--end bool_pipestage;
 
 
 
-architecture rtl of bool_pipestage is
+--architecture rtl of bool_pipestage is
 
-begin
+--begin
 
-ns0: if n_stages = 0 
-generate
-begin
-  o <= i;
-end generate;
-
-
-ns1: if n_stages = 1
-generate
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-        o <= false; 
-      elsif ce = '1'
-      then
-        o <= i;
-      end if;
-    end if; -- rising_edge()
-  end process;
-end generate;
+--ns0: if n_stages = 0 
+--generate
+--begin
+  --o <= i;
+--end generate;
 
 
-ns2: if n_stages >= 2
-generate 
-  type bla is array(0 to n_stages-1) of	boolean; 
-	signal reg: bla;   
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-    		  for n in reg'range loop
-          reg(n) <= false;
-			  end loop;
-      elsif ce = '1'
-      then
-        reg(0) <= i;
-				for n in 1 to n_stages-1 loop
-					reg(n) <= reg(n-1);
-				end loop;
-       end if;
-    end if; -- rising_edge()
-  end process;
-  o <= reg(n_stages-1);
-end generate;
+--ns1: if n_stages = 1
+--generate
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+        --o <= false; 
+      --elsif ce = '1'
+      --then
+        --o <= i;
+      --end if;
+    --end if; -- rising_edge()
+  --end process;
+--end generate;
 
-end rtl;
+
+--ns2: if n_stages >= 2
+--generate 
+  --type bla is array(0 to n_stages-1) of	boolean; 
+	--signal reg: bla;   
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+    		  --for n in reg'range loop
+          --reg(n) <= false;
+			  --end loop;
+      --elsif ce = '1'
+      --then
+        --reg(0) <= i;
+				--for n in 1 to n_stages-1 loop
+					--reg(n) <= reg(n-1);
+				--end loop;
+       --end if;
+    --end if; -- rising_edge()
+  --end process;
+  --o <= reg(n_stages-1);
+--end generate;
+
+--end rtl;
 
 
 
@@ -499,165 +498,165 @@ end rtl;
 ----------------------------------------------------------------------------------------------------
 -- integer version
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.numeric_std.all;
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL;
+--use IEEE.numeric_std.all;
 
-entity integer_pipestage is
-  generic (
-    n_stages: natural  := 1
-  );
-  Port ( 
-    clk: in  std_logic;
-    ce:  in  std_logic := '1';
-    rst: in  std_logic := '0';
+--entity integer_pipestage is
+  --generic (
+    --n_stages: natural  := 1
+  --);
+  --Port ( 
+    --clk: in  std_logic;
+    --ce:  in  std_logic := '1';
+    --rst: in  std_logic := '0';
     
-    i:   in  integer;
-    o:   out integer
-  );
-end integer_pipestage;
+    --i:   in  integer;
+    --o:   out integer
+  --);
+--end integer_pipestage;
 
 
-architecture rtl of integer_pipestage is
+--architecture rtl of integer_pipestage is
 
-begin
+--begin
 
-ns0: if n_stages = 0 
-generate
-begin
-  o <= i;
-end generate;
-
-
-ns1: if n_stages = 1
-generate
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-        o <= 0; 
-      elsif ce = '1'
-      then
-        o <= i;
-      end if;
-    end if; -- rising_edge()
-  end process;
-end generate;
+--ns0: if n_stages = 0 
+--generate
+--begin
+  --o <= i;
+--end generate;
 
 
-ns2: if n_stages >= 2
-generate 
-  type bla is array(0 to n_stages-1) of	integer; 
-	signal reg: bla;   
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-    		  for n in reg'range loop
-          reg(n) <= 0;
-			  end loop;
-      elsif ce = '1'
-      then
-        reg(0) <= i;
-				for n in 1 to n_stages-1 loop
-					reg(n) <= reg(n-1);
-				end loop;
-       end if;
-    end if; -- rising_edge()
-  end process;
-  o <= reg(n_stages-1);
-end generate;
+--ns1: if n_stages = 1
+--generate
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+        --o <= 0; 
+      --elsif ce = '1'
+      --then
+        --o <= i;
+      --end if;
+    --end if; -- rising_edge()
+  --end process;
+--end generate;
 
-end rtl;
+
+--ns2: if n_stages >= 2
+--generate 
+  --type bla is array(0 to n_stages-1) of	integer; 
+	--signal reg: bla;   
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+    		  --for n in reg'range loop
+          --reg(n) <= 0;
+			  --end loop;
+      --elsif ce = '1'
+      --then
+        --reg(0) <= i;
+				--for n in 1 to n_stages-1 loop
+					--reg(n) <= reg(n-1);
+				--end loop;
+       --end if;
+    --end if; -- rising_edge()
+  --end process;
+  --o <= reg(n_stages-1);
+--end generate;
+
+--end rtl;
 
 
 ----------------------------------------------------------------------------------------------------
 -- real version
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.numeric_std.all;
+--library IEEE;
+--use IEEE.STD_LOGIC_1164.ALL;
+--use IEEE.numeric_std.all;
 
-entity real_pipestage is
-  generic (
-    n_stages: natural  := 1
-  );
-  Port ( 
-    clk: in  std_logic;
-    ce:  in  std_logic := '1';
-    rst: in  std_logic := '0';
+--entity real_pipestage is
+  --generic (
+    --n_stages: natural  := 1
+  --);
+  --Port ( 
+    --clk: in  std_logic;
+    --ce:  in  std_logic := '1';
+    --rst: in  std_logic := '0';
     
-    i:   in  real;
-    o:   out real
-  );
-end real_pipestage;
+    --i:   in  real;
+    --o:   out real
+  --);
+--end real_pipestage;
 
 
 
 
-architecture rtl of real_pipestage is
+--architecture rtl of real_pipestage is
 
-begin
+--begin
 
-ns0: if n_stages = 0 
-generate
-begin
-  o <= i;
-end generate;
-
-
-ns1: if n_stages = 1
-generate
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-        o <= 0.0; 
-      elsif ce = '1'
-      then
-        o <= i;
-      end if;
-    end if; -- rising_edge()
-  end process;
-end generate;
+--ns0: if n_stages = 0 
+--generate
+--begin
+  --o <= i;
+--end generate;
 
 
-ns2: if n_stages >= 2
-generate 
-  type bla is array(0 to n_stages-1) of	real; 
-	signal reg: bla;   
-begin
-  u_reg: process(clk)
-  begin
-    if rising_edge(clk)
-    then
-      if rst = '1' 
-      then
-    		  for n in reg'range loop
-          reg(n) <= 0.0;
-			  end loop;
-      elsif ce = '1'
-      then
-        reg(0) <= i;
-				for n in 1 to n_stages-1 loop
-					reg(n) <= reg(n-1);
-				end loop;
-       end if;
-    end if; -- rising_edge()
-  end process;
-  o <= reg(n_stages-1);
-end generate;
+--ns1: if n_stages = 1
+--generate
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+        --o <= 0.0; 
+      --elsif ce = '1'
+      --then
+        --o <= i;
+      --end if;
+    --end if; -- rising_edge()
+  --end process;
+--end generate;
 
-end rtl;
+
+--ns2: if n_stages >= 2
+--generate 
+  --type bla is array(0 to n_stages-1) of	real; 
+	--signal reg: bla;   
+--begin
+  --u_reg: process(clk)
+  --begin
+    --if rising_edge(clk)
+    --then
+      --if rst = '1' 
+      --then
+    		  --for n in reg'range loop
+          --reg(n) <= 0.0;
+			  --end loop;
+      --elsif ce = '1'
+      --then
+        --reg(0) <= i;
+				--for n in 1 to n_stages-1 loop
+					--reg(n) <= reg(n-1);
+				--end loop;
+       --end if;
+    --end if; -- rising_edge()
+  --end process;
+  --o <= reg(n_stages-1);
+--end generate;
+
+--end rtl;
 
 
 

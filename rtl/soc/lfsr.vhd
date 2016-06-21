@@ -14,8 +14,10 @@ end fixed_point;
 package body fixed_point is
 
 function mul_fixed(x, y : fixed) return fixed is
+variable r : signed;
 begin
-	return (x*y)(31 + C_fracpart downto C_fracpart);
+	r := x * y;
+	return r(31 + C_fracpart downto C_fracpart);
 end mul_fixed;
 
 -- 5th order sine approximation adapted from fixedpoint.h
@@ -28,9 +30,11 @@ constant C : fixed := to_signed(16#1487ed5#, 32); -- (2*M_PI - 5) << shift1
 constant D : fixed := to_signed(16#3243f6a#, 32); -- M_PI << shift1
 
 constant qN : integer := C_fracpart;
+variable r : signed;
 
 begin
-    x1 := (x*INV_PI)(59 downto 28);
+	r := x * INV_PI;
+    x1 := r(59 downto 28);
     
     x1 := shift_left(x1,(30-qN-shift1)); -- shift to full s32 range
     
@@ -119,7 +123,7 @@ begin
 -- parameterized module component instance
    I_sincos: entity work.sintab
 	 generic map ( pipestages => 0 )
-     port map (clk=>clk, theta=> R_theta, sine=>sin);
+     port map (clk=>clk, theta=> unsigned(R_theta), sine=>sin);
 	
 end x;
 
@@ -241,9 +245,9 @@ begin
 	variable uniforms : from_lfsr_array;
 	variable sum : fixed;
 	-- norm: normalization constant which ensures stdev = 1  
-	constant norm : fixed := std_logic_vector(to_signed(7094, 32));
+	constant norm : fixed := to_signed(7094, 32);
 	
-	variable r : fixed;
+	variable r : signed(63 downto 0);
 	begin
 		for i in 0 to C_num_lfsrs -1 loop
 			uniforms(i) := from_lfsr(i)(29) & from_lfsr(i)(29) & from_lfsr(i)(29 downto 0);
@@ -251,9 +255,11 @@ begin
 		sum := signed(uniforms(0) + uniforms(1) + uniforms(2) + uniforms(3));
 		--r = r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi; 
 		
-		r :=  (R_arg_stdev * norm)(31 + C_fracpart + 2 downto C_fracpart + 2);
-		r := (sum * r)(31 + C_fracpart downto C_fracpart) + R_arg_mean;
-		bus_out <= r;
+		r :=  (R_arg_stdev * norm);
+		r := sum * r(31 + C_fracpart + 2 downto C_fracpart + 2);
+		
+		bus_out <= std_logic_vector( r(31 + C_fracpart downto C_fracpart) + R_arg_mean );
+
 		
 	end process;
 

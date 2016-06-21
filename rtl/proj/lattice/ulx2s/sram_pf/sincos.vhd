@@ -326,486 +326,486 @@ END ARCHITECTURE rtl;
 -- for the first and second part of the address range.
 
 
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use ieee.math_real.all;
+--library ieee;
+--use ieee.std_logic_1164.all;
+--use ieee.numeric_std.all;
+--use ieee.math_real.all;
 
 
 
-entity sincostab is
-   generic (
-      pipestages: integer range 0 to 10
-   );
-   port (
-      clk:        in  std_logic;
-      ce:         in  std_logic := '1';
-      rst:        in  std_logic := '0';
+--entity sincostab is
+   --generic (
+      --pipestages: integer range 0 to 10
+   --);
+   --port (
+      --clk:        in  std_logic;
+      --ce:         in  std_logic := '1';
+      --rst:        in  std_logic := '0';
 
-      theta:      in  unsigned;
-      sine:       out signed;
-      cosine:     out signed
-   );  
-end entity sincostab;
-
-
-
-architecture rtl of sincostab is
-
-type delaytable is array(0 to 10) of integer;
-
-constant in_pipe:  delaytable := ( 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
-constant adr_pipe: delaytable := ( 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3);
-constant rom_pipe: delaytable := ( 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4);
-constant out_pipe: delaytable := ( 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2);
-
---    total delay                  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+      --theta:      in  unsigned;
+      --sine:       out signed;
+      --cosine:     out signed
+   --);  
+--end entity sincostab;
 
 
 
-constant verbose:              boolean := true;
+--architecture rtl of sincostab is
 
-signal   piped_theta:          unsigned(theta'range);   -- pipelined input
+--type delaytable is array(0 to 10) of integer;
 
-signal   ras:                  unsigned(theta'high-2 downto 0); -- rom address for sine
-signal   rac:                  unsigned(theta'high-2 downto 0); -- rom address for cos
+--constant in_pipe:  delaytable := ( 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
+--constant adr_pipe: delaytable := ( 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3);
+--constant rom_pipe: delaytable := ( 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4);
+--constant out_pipe: delaytable := ( 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2);
 
-signal   pras:                 unsigned(theta'high-2 downto 0); -- pipelined rom addresses
-signal   prac:                 unsigned(theta'high-2 downto 0);
-
-signal   piped_abs_sin:        unsigned(sine'high-1 downto 0);
-signal   piped_abs_cos:        unsigned(cosine'high-1 downto 0);
-
-signal   piped_invert_the_sin: std_logic;
-signal   sig_sin:              signed(sine'range);
-
-signal   invert_the_cos:       std_logic;
-signal   piped_invert_the_cos: std_logic;
-signal   sig_cos:              signed(cosine'range);
-
-----------------------------------------------------------------------------------------------------
---
--- The sine lookup table and how it is initialized.
---
---
--- the sine lookup table is unsigned because we store one quarter wave only.
-
-type sintab is array (0 to (2**(theta'length-3)) -1) of unsigned(sine'length-2 downto 0);
+----    total delay                  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 
 
 
-function sine_at_middle_of_bin( bin: integer; rom_words: integer) return real is
-  variable x:  real;
-begin
-    x := (real(bin) + 0.5) * MATH_PI / 2.0 / real(rom_words);
-    return sin(x);  
-end;
+--constant verbose:              boolean := true;
+
+--signal   piped_theta:          unsigned(theta'range);   -- pipelined input
+
+--signal   ras:                  unsigned(theta'high-2 downto 0); -- rom address for sine
+--signal   rac:                  unsigned(theta'high-2 downto 0); -- rom address for cos
+
+--signal   pras:                 unsigned(theta'high-2 downto 0); -- pipelined rom addresses
+--signal   prac:                 unsigned(theta'high-2 downto 0);
+
+--signal   piped_abs_sin:        unsigned(sine'high-1 downto 0);
+--signal   piped_abs_cos:        unsigned(cosine'high-1 downto 0);
+
+--signal   piped_invert_the_sin: std_logic;
+--signal   sig_sin:              signed(sine'range);
+
+--signal   invert_the_cos:       std_logic;
+--signal   piped_invert_the_cos: std_logic;
+--signal   sig_cos:              signed(cosine'range);
+
+------------------------------------------------------------------------------------------------------
+----
+---- The sine lookup table and how it is initialized.
+----
+----
+---- the sine lookup table is unsigned because we store one quarter wave only.
+
+--type sintab is array (0 to (2**(theta'length-3)) -1) of unsigned(sine'length-2 downto 0);
 
 
 
--- initialize sine table for 0 to 44 degrees
+--function sine_at_middle_of_bin( bin: integer; rom_words: integer) return real is
+  --variable x:  real;
+--begin
+    --x := (real(bin) + 0.5) * MATH_PI / 2.0 / real(rom_words);
+    --return sin(x);  
+--end;
 
-function init_sin1(verbose: boolean; rom_words: integer; bits_per_uword: integer) return sintab is
-  variable s: sintab;
-  variable y: real;   
-  constant scalefactor: real := real((2 ** bits_per_uword)-1);
 
-  begin
-     if verbose
-     then
-       report "initializing sine table:    rom_words = " 
-            & integer'image(rom_words)
-            & "   rom bits per unsigned word = "
-            & integer'image(bits_per_uword)
-            & "    scalefactor = "
-            & real'image(scalefactor);
-     end if;
+
+---- initialize sine table for 0 to 44 degrees
+
+--function init_sin1(verbose: boolean; rom_words: integer; bits_per_uword: integer) return sintab is
+  --variable s: sintab;
+  --variable y: real;   
+  --constant scalefactor: real := real((2 ** bits_per_uword)-1);
+
+  --begin
+     --if verbose
+     --then
+       --report "initializing sine table:    rom_words = " 
+            --& integer'image(rom_words)
+            --& "   rom bits per unsigned word = "
+            --& integer'image(bits_per_uword)
+            --& "    scalefactor = "
+            --& real'image(scalefactor);
+     --end if;
      
-     for i in 0 to (rom_words/2)-1 loop
-       y := sine_at_middle_of_bin(i, rom_words);
-       s(i) := to_unsigned(integer( round(y * scalefactor )), bits_per_uword);
+     --for i in 0 to (rom_words/2)-1 loop
+       --y := sine_at_middle_of_bin(i, rom_words);
+       --s(i) := to_unsigned(integer( round(y * scalefactor )), bits_per_uword);
        
-       if verbose
-       then
-         report "i = "                & integer'image(i) 
-            & "  exact sin y = "      & real'image(y)
-            & "  exact scaled y = "   & real'image(y*scalefactor)
-            & "  rounded int s(i) = " & integer'image( to_integer(s(i)))
-            & "  error = "            & real'image(y*scalefactor - real(to_integer(s(i))))
-            ;
-        end if;
-      end loop;
+       --if verbose
+       --then
+         --report "i = "                & integer'image(i) 
+            --& "  exact sin y = "      & real'image(y)
+            --& "  exact scaled y = "   & real'image(y*scalefactor)
+            --& "  rounded int s(i) = " & integer'image( to_integer(s(i)))
+            --& "  error = "            & real'image(y*scalefactor - real(to_integer(s(i))))
+            --;
+        --end if;
+      --end loop;
       
-  return s;
-end function init_sin1;
+  --return s;
+--end function init_sin1;
 
 
 
--- initialize sine table for 45 to 89 degrees
+---- initialize sine table for 45 to 89 degrees
 
-function init_sin2(verbose: boolean; rom_words: integer; bits_per_uword: integer) return sintab is
-  variable s: sintab;
-  variable y: real;   
-  constant scalefactor: real := real((2 ** bits_per_uword)-1);
+--function init_sin2(verbose: boolean; rom_words: integer; bits_per_uword: integer) return sintab is
+  --variable s: sintab;
+  --variable y: real;   
+  --constant scalefactor: real := real((2 ** bits_per_uword)-1);
 
-  begin
-     if verbose
-     then
-       report "initializing sine table:    rom_words = " 
-            & integer'image(rom_words)
-            & "   rom bits per unsigned word = "
-            & integer'image(bits_per_uword)
-            & "    scalefactor = "
-            & real'image(scalefactor);
-     end if;
+  --begin
+     --if verbose
+     --then
+       --report "initializing sine table:    rom_words = " 
+            --& integer'image(rom_words)
+            --& "   rom bits per unsigned word = "
+            --& integer'image(bits_per_uword)
+            --& "    scalefactor = "
+            --& real'image(scalefactor);
+     --end if;
      
-     for i in rom_words/2 to rom_words-1 loop
-       y := sine_at_middle_of_bin(i, rom_words);
-       s(i - (rom_words/2)) := to_unsigned(integer( round(y * scalefactor )), bits_per_uword);
+     --for i in rom_words/2 to rom_words-1 loop
+       --y := sine_at_middle_of_bin(i, rom_words);
+       --s(i - (rom_words/2)) := to_unsigned(integer( round(y * scalefactor )), bits_per_uword);
        
-       if verbose
-       then
-         report "i = "                & integer'image(i) 
-            & "  exact sin y = "      & real'image(y)
-            & "  exact scaled y = "   & real'image(y*scalefactor)
-            & "  rounded int s(i) = " & integer'image( to_integer(s(i-rom_words/2)))
-            & "  error = "            & real'image(y*scalefactor - real(to_integer(s(i-rom_words/2))))
-            ;
-        end if;
-      end loop;
+       --if verbose
+       --then
+         --report "i = "                & integer'image(i) 
+            --& "  exact sin y = "      & real'image(y)
+            --& "  exact scaled y = "   & real'image(y*scalefactor)
+            --& "  rounded int s(i) = " & integer'image( to_integer(s(i-rom_words/2)))
+            --& "  error = "            & real'image(y*scalefactor - real(to_integer(s(i-rom_words/2))))
+            --;
+        --end if;
+      --end loop;
       
-  return s;
-end function init_sin2;
+  --return s;
+--end function init_sin2;
 
 
 
 
 
--- The 'constant' is important here.  It tells the synthesizer that 
--- all the computations can be done at compile time.
+---- The 'constant' is important here.  It tells the synthesizer that 
+---- all the computations can be done at compile time.
 
-constant rom1:  sintab := init_sin1(verbose, 2 ** (theta'length-2), sine'length-1);
-constant rom2:  sintab := init_sin2(verbose, 2 ** (theta'length-2), sine'length-1);
+--constant rom1:  sintab := init_sin1(verbose, 2 ** (theta'length-2), sine'length-1);
+--constant rom2:  sintab := init_sin2(verbose, 2 ** (theta'length-2), sine'length-1);
 
-----------------------------------------------------------------------------------------------------
---
--- convert phase input to ROM address.
---
--- theta has an address range from 0 to a little less than 2 Pi. (full circle)
--- "a little less than 2 pi" is represented as all ones.
--- The look up table goes only from 0 to a little less than 1/2 Pi. (quarter circle)
--- The two highest bits of theta determine only the quadrant
--- and are implemented by address mirroring and sign change.
+------------------------------------------------------------------------------------------------------
+----
+---- convert phase input to ROM address.
+----
+---- theta has an address range from 0 to a little less than 2 Pi. (full circle)
+---- "a little less than 2 pi" is represented as all ones.
+---- The look up table goes only from 0 to a little less than 1/2 Pi. (quarter circle)
+---- The two highest bits of theta determine only the quadrant
+---- and are implemented by address mirroring and sign change.
 
--- address mirroring    hi bits      sine    cosine
--- 1st quarter wave     00           no      yes
--- 2nd quarter wave     01           yes     no
--- 3rd quarter wave     10           no      yes
--- 4th quarter wave     11           yes     no
+---- address mirroring    hi bits      sine    cosine
+---- 1st quarter wave     00           no      yes
+---- 2nd quarter wave     01           yes     no
+---- 3rd quarter wave     10           no      yes
+---- 4th quarter wave     11           yes     no
 
 
-function reduce_sin_address (theta: unsigned) return unsigned is
+--function reduce_sin_address (theta: unsigned) return unsigned is
 
-   variable quarterwave_address: unsigned(theta'high-2 downto 0);
-   variable mirrored:            boolean;
-   variable forward_address:     unsigned(theta'high-2 downto 0);
-   variable backward_address:    unsigned(theta'high-2 downto 0);
-   constant verbose:             boolean := false;
+   --variable quarterwave_address: unsigned(theta'high-2 downto 0);
+   --variable mirrored:            boolean;
+   --variable forward_address:     unsigned(theta'high-2 downto 0);
+   --variable backward_address:    unsigned(theta'high-2 downto 0);
+   --constant verbose:             boolean := false;
    
-begin
+--begin
 
-  -- the highest bit makes no difference on the abs. value of the sine
-  -- it just negates the value if set. This is done on the output side
-  -- after the ROM.
+  ---- the highest bit makes no difference on the abs. value of the sine
+  ---- it just negates the value if set. This is done on the output side
+  ---- after the ROM.
    
-  mirrored := ((theta(theta'high) = '0') and (theta(theta'high-1) = '1'))  -- 2nd quadr.
-           or ((theta(theta'high) = '1') and (theta(theta'high-1) = '1')); -- 4th quadr.
+  --mirrored := ((theta(theta'high) = '0') and (theta(theta'high-1) = '1'))  -- 2nd quadr.
+           --or ((theta(theta'high) = '1') and (theta(theta'high-1) = '1')); -- 4th quadr.
   
-  forward_address    := theta(theta'high-2 downto 0);
-  backward_address   := unsigned(-1 -signed( theta(theta'high-2 downto 0)));  
+  --forward_address    := theta(theta'high-2 downto 0);
+  --backward_address   := unsigned(-1 -signed( theta(theta'high-2 downto 0)));  
   
-  if mirrored then
-    quarterwave_address := backward_address;
-  else
-    quarterwave_address := forward_address;
-  end if;
+  --if mirrored then
+    --quarterwave_address := backward_address;
+  --else
+    --quarterwave_address := forward_address;
+  --end if;
 
-  if verbose
-  then
-    report "sin theta = "               & integer'image(to_integer(theta)) 
-         & "   forward: "               & integer'image(to_integer(forward_address))
-         & "   backward: "              & integer'image(to_integer(backward_address))
-         & "   Quarterwave address = "  & integer'image(to_integer(quarterwave_address))
-         & "   mirrored: "              & boolean'image(mirrored);
-  end if;
-  return quarterwave_address;
-end reduce_sin_address;
+  --if verbose
+  --then
+    --report "sin theta = "               & integer'image(to_integer(theta)) 
+         --& "   forward: "               & integer'image(to_integer(forward_address))
+         --& "   backward: "              & integer'image(to_integer(backward_address))
+         --& "   Quarterwave address = "  & integer'image(to_integer(quarterwave_address))
+         --& "   mirrored: "              & boolean'image(mirrored);
+  --end if;
+  --return quarterwave_address;
+--end reduce_sin_address;
 
  
  
-function reduce_cos_address (theta: unsigned) return unsigned is
+--function reduce_cos_address (theta: unsigned) return unsigned is
 
-   variable quarterwave_address: unsigned(theta'high-2 downto 0);
-   variable mirrored:            boolean;
-   variable forward_address:     unsigned(theta'high-2 downto 0);
-   variable backward_address:    unsigned(theta'high-2 downto 0);
-   constant verbose:             boolean := false;
+   --variable quarterwave_address: unsigned(theta'high-2 downto 0);
+   --variable mirrored:            boolean;
+   --variable forward_address:     unsigned(theta'high-2 downto 0);
+   --variable backward_address:    unsigned(theta'high-2 downto 0);
+   --constant verbose:             boolean := false;
      
-begin
+--begin
  
-  mirrored := ((theta(theta'high) = '0') and (theta(theta'high-1) = '0'))  -- 1st quadr.
-           or ((theta(theta'high) = '1') and (theta(theta'high-1) = '0')); -- 3th quadr.
+  --mirrored := ((theta(theta'high) = '0') and (theta(theta'high-1) = '0'))  -- 1st quadr.
+           --or ((theta(theta'high) = '1') and (theta(theta'high-1) = '0')); -- 3th quadr.
   
-  forward_address    := theta(theta'high-2 downto 0);
-  backward_address   := unsigned(-1 -signed( theta(theta'high-2 downto 0)));  
+  --forward_address    := theta(theta'high-2 downto 0);
+  --backward_address   := unsigned(-1 -signed( theta(theta'high-2 downto 0)));  
   
-  if mirrored then
-    quarterwave_address := backward_address;
-  else
-    quarterwave_address := forward_address;
-  end if;
+  --if mirrored then
+    --quarterwave_address := backward_address;
+  --else
+    --quarterwave_address := forward_address;
+  --end if;
 
-  if verbose
-  then
-    report "cos theta = "               & integer'image(to_integer(theta)) 
-         & "   forward: "               & integer'image(to_integer(forward_address))
-         & "   backward: "              & integer'image(to_integer(backward_address))
-         & "   Quarterwave address = "  & integer'image(to_integer(quarterwave_address))
-         & "   mirrored: "              & boolean'image(mirrored);
-  end if;
-  return quarterwave_address;
-end reduce_cos_address;
+  --if verbose
+  --then
+    --report "cos theta = "               & integer'image(to_integer(theta)) 
+         --& "   forward: "               & integer'image(to_integer(forward_address))
+         --& "   backward: "              & integer'image(to_integer(backward_address))
+         --& "   Quarterwave address = "  & integer'image(to_integer(quarterwave_address))
+         --& "   mirrored: "              & boolean'image(mirrored);
+  --end if;
+  --return quarterwave_address;
+--end reduce_cos_address;
 
 
 
-----------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
 
-BEGIN
+--BEGIN
    
    
--- this assertion might be relaxed, but I see no justification
--- for the extra testing.
+---- this assertion might be relaxed, but I see no justification
+---- for the extra testing.
    
-assert sine'length = cosine'length
-  report "sincostab: sine and cosine length do not match: "
-       & integer'image(sine'length)
-       & " vs. "
-       & integer'image(cosine'length)
-  severity error;
+--assert sine'length = cosine'length
+  --report "sincostab: sine and cosine length do not match: "
+       --& integer'image(sine'length)
+       --& " vs. "
+       --& integer'image(cosine'length)
+  --severity error;
    
    
-----------------------------------------------------------------------------------------------------
---
--- input delay stage
+------------------------------------------------------------------------------------------------------
+----
+---- input delay stage
 
-u_adr:	entity work.unsigned_pipestage
-generic map (
-  n_stages	=> in_pipe(pipestages)
-)
-Port map ( 
-  clk => clk,
-  ce  => ce,
-  rst => rst,
+--u_adr:	entity work.unsigned_pipestage
+--generic map (
+  --n_stages	=> in_pipe(pipestages)
+--)
+--Port map ( 
+  --clk => clk,
+  --ce  => ce,
+  --rst => rst,
   
-  i   => theta,
-  o   => piped_theta
-);
+  --i   => theta,
+  --o   => piped_theta
+--);
 
-----------------------------------------------------------------------------------------------------
--- propagate the information whether we will have to invert the output
+------------------------------------------------------------------------------------------------------
+---- propagate the information whether we will have to invert the output
 
-u_invs:	entity work.sl_pipestage
-generic map (
-  n_stages	=> adr_pipe(pipestages) + rom_pipe(pipestages)
-)
-Port map ( 
-  clk => clk,
-  ce  => ce,
-  rst => rst,
+--u_invs:	entity work.sl_pipestage
+--generic map (
+  --n_stages	=> adr_pipe(pipestages) + rom_pipe(pipestages)
+--)
+--Port map ( 
+  --clk => clk,
+  --ce  => ce,
+  --rst => rst,
   
-  i   => std_logic(piped_theta(piped_theta'high)),   -- sine is neg. for 2nd half of cycle
-  o   => piped_invert_the_sin
-);
+  --i   => std_logic(piped_theta(piped_theta'high)),   -- sine is neg. for 2nd half of cycle
+  --o   => piped_invert_the_sin
+--);
 
 
-invert_the_cos <= std_logic(piped_theta(piped_theta'high) xor piped_theta(piped_theta'high-1)); 
+--invert_the_cos <= std_logic(piped_theta(piped_theta'high) xor piped_theta(piped_theta'high-1)); 
 
-u_invc:	entity work.sl_pipestage
-generic map (
-  n_stages	=> adr_pipe(pipestages) + rom_pipe(pipestages)
-)
-Port map ( 
-  clk => clk,
-  ce  => ce,
-  rst => rst,
+--u_invc:	entity work.sl_pipestage
+--generic map (
+  --n_stages	=> adr_pipe(pipestages) + rom_pipe(pipestages)
+--)
+--Port map ( 
+  --clk => clk,
+  --ce  => ce,
+  --rst => rst,
   
-  i   => invert_the_cos,
-  o   => piped_invert_the_cos
-);
+  --i   => invert_the_cos,
+  --o   => piped_invert_the_cos
+--);
 
-----------------------------------------------------------------------------------------------------
---
--- address folding with potential pipe stage
---
+------------------------------------------------------------------------------------------------------
+----
+---- address folding with potential pipe stage
+----
 
-ras <= reduce_sin_address(piped_theta);
-rac <= reduce_cos_address(piped_theta);
+--ras <= reduce_sin_address(piped_theta);
+--rac <= reduce_cos_address(piped_theta);
 
-u_pip_adrs:	entity work.unsigned_pipestage
-generic map (
-  n_stages	=> adr_pipe(pipestages)
-)
-Port map ( 
-  clk => clk,
-  ce  => ce,
-  rst => rst,
+--u_pip_adrs:	entity work.unsigned_pipestage
+--generic map (
+  --n_stages	=> adr_pipe(pipestages)
+--)
+--Port map ( 
+  --clk => clk,
+  --ce  => ce,
+  --rst => rst,
   
-  i   => ras,
-  o   => pras
-);
+  --i   => ras,
+  --o   => pras
+--);
 
 
-u_pip_adrc:	entity work.unsigned_pipestage
-generic map (
-  n_stages	=> adr_pipe(pipestages)
-)
-Port map ( 
-  clk => clk,
-  ce  => ce,
-  rst => rst,
+--u_pip_adrc:	entity work.unsigned_pipestage
+--generic map (
+  --n_stages	=> adr_pipe(pipestages)
+--)
+--Port map ( 
+  --clk => clk,
+  --ce  => ce,
+  --rst => rst,
   
-  i   => rac,
-  o   => prac
-);
+  --i   => rac,
+  --o   => prac
+--);
 
 
 
---------------------------------------------------------------------------------
---
--- ROM access
---
+----------------------------------------------------------------------------------
+----
+---- ROM access
+----
 
-distrib_rom: if rom_pipe(pipestages) = 0
-generate  -- a distributed ROM if no latency is allowed
-begin
+--distrib_rom: if rom_pipe(pipestages) = 0
+--generate  -- a distributed ROM if no latency is allowed
+--begin
  
-  piped_abs_sin <= rom1(to_integer(pras(pras'high-1 downto 0))) 
-                when pras(pras'high) = '0' else 
-                   rom2(to_integer(pras(pras'high-1 downto 0)));
+  --piped_abs_sin <= rom1(to_integer(pras(pras'high-1 downto 0))) 
+                --when pras(pras'high) = '0' else 
+                   --rom2(to_integer(pras(pras'high-1 downto 0)));
 
-  piped_abs_cos <= rom1(to_integer(prac(prac'high-1 downto 0)))
-                when prac(prac'high) = '0' else 
-                   rom2(to_integer(prac(prac'high-1 downto 0)));
+  --piped_abs_cos <= rom1(to_integer(prac(prac'high-1 downto 0)))
+                --when prac(prac'high) = '0' else 
+                   --rom2(to_integer(prac(prac'high-1 downto 0)));
 
-end generate;
+--end generate;
 
 
 
-block_rom: if rom_pipe(pipestages) > 0
-generate 
+--block_rom: if rom_pipe(pipestages) > 0
+--generate 
 
-  signal   rom_out1: unsigned(sine'high-1 downto 0);
-  signal   rom_out2: unsigned(sine'high-1 downto 0);
+  --signal   rom_out1: unsigned(sine'high-1 downto 0);
+  --signal   rom_out2: unsigned(sine'high-1 downto 0);
   
-  signal   abs_sin:  unsigned(sine'high-1 downto 0);  -- abs of sine at mux output
-  signal   abs_cos:  unsigned(sine'high-1 downto 0);
+  --signal   abs_sin:  unsigned(sine'high-1 downto 0);  -- abs of sine at mux output
+  --signal   abs_cos:  unsigned(sine'high-1 downto 0);
   
-begin
-  -- Xilinx XST 12.3 needs a clocked process to infer BlockRam/ROM. 
-  -- It does not see that it could generate block ROM if it propagated a pipestage. 
+--begin
+  ---- Xilinx XST 12.3 needs a clocked process to infer BlockRam/ROM. 
+  ---- It does not see that it could generate block ROM if it propagated a pipestage. 
   
-  u_rom: process(clk) is 
-  begin 
-    if rising_edge(clk)
-    then
-      rom_out1 <= rom1(to_integer(pras(pras'high-1 downto 0)));
-      rom_out2 <= rom2(to_integer(prac(prac'high-1 downto 0)));
-    end if;
-  end process;
+  --u_rom: process(clk) is 
+  --begin 
+    --if rising_edge(clk)
+    --then
+      --rom_out1 <= rom1(to_integer(pras(pras'high-1 downto 0)));
+      --rom_out2 <= rom2(to_integer(prac(prac'high-1 downto 0)));
+    --end if;
+  --end process;
 
-  abs_sin <= rom_out1 when pras(pras'high) = '0'
-        else rom_out2;
+  --abs_sin <= rom_out1 when pras(pras'high) = '0'
+        --else rom_out2;
 
-  abs_cos <= rom_out1 when prac(prac'high) = '0'
-        else rom_out2;
+  --abs_cos <= rom_out1 when prac(prac'high) = '0'
+        --else rom_out2;
  
   
-  -- more rom pipeline stages when needed
-  u_rom_dly_s:	entity work.unsigned_pipestage
-  generic map (
-    n_stages	=> rom_pipe(pipestages)-1          -- 0 is allowed.
-  )
-  Port map ( 
-    clk => clk,
-    ce  => ce,
-    rst => rst,
+  ---- more rom pipeline stages when needed
+  --u_rom_dly_s:	entity work.unsigned_pipestage
+  --generic map (
+    --n_stages	=> rom_pipe(pipestages)-1          -- 0 is allowed.
+  --)
+  --Port map ( 
+    --clk => clk,
+    --ce  => ce,
+    --rst => rst,
   
-    i   => abs_sin,
-    o   => piped_abs_sin
-  );
+    --i   => abs_sin,
+    --o   => piped_abs_sin
+  --);
 
 
-  u_rom_dly_c:	entity work.unsigned_pipestage
-  generic map (
-    n_stages	=> rom_pipe(pipestages)-1
-  )
-  Port map ( 
-    clk => clk,
-    ce  => ce,
-    rst => rst,
+  --u_rom_dly_c:	entity work.unsigned_pipestage
+  --generic map (
+    --n_stages	=> rom_pipe(pipestages)-1
+  --)
+  --Port map ( 
+    --clk => clk,
+    --ce  => ce,
+    --rst => rst,
   
-    i   => abs_cos,
-    o   => piped_abs_cos
-  );
+    --i   => abs_cos,
+    --o   => piped_abs_cos
+  --);
 
-end generate;
-
-
---------------------------------------------------------------------------------
---
--- conditional output inversion
--- table entries are unsigned. Convert them to signed and make them one bit larger
--- so that we have a home for the sign bit.
-
-   sig_sin <= -signed(resize(piped_abs_sin, sine'length)) when piped_invert_the_sin = '1'
-          else 
-               signed(resize(piped_abs_sin, sine'length));
+--end generate;
 
 
-   sig_cos <= -signed(resize(piped_abs_cos, cosine'length)) when piped_invert_the_cos = '1'
-          else 
-               signed(resize(piped_abs_cos, cosine'length));
+----------------------------------------------------------------------------------
+----
+---- conditional output inversion
+---- table entries are unsigned. Convert them to signed and make them one bit larger
+---- so that we have a home for the sign bit.
+
+   --sig_sin <= -signed(resize(piped_abs_sin, sine'length)) when piped_invert_the_sin = '1'
+          --else 
+               --signed(resize(piped_abs_sin, sine'length));
+
+
+   --sig_cos <= -signed(resize(piped_abs_cos, cosine'length)) when piped_invert_the_cos = '1'
+          --else 
+               --signed(resize(piped_abs_cos, cosine'length));
 
 
 
-u_os:	entity work.signed_pipestage
-generic map (
-  n_stages	=> out_pipe(pipestages)
-)
-Port map ( 
-  clk => clk,
-  ce  => ce,
-  rst => rst,
+--u_os:	entity work.signed_pipestage
+--generic map (
+  --n_stages	=> out_pipe(pipestages)
+--)
+--Port map ( 
+  --clk => clk,
+  --ce  => ce,
+  --rst => rst,
   
-  i   => sig_sin,
-  o   => sine
-);   
+  --i   => sig_sin,
+  --o   => sine
+--);   
 
 
-u_oc:	entity work.signed_pipestage
-generic map (
-  n_stages	=> out_pipe(pipestages)
-)
-Port map (
-  clk => clk,
-  ce  => ce,
-  rst => rst,
+--u_oc:	entity work.signed_pipestage
+--generic map (
+  --n_stages	=> out_pipe(pipestages)
+--)
+--Port map (
+  --clk => clk,
+  --ce  => ce,
+  --rst => rst,
   
-  i   => sig_cos,
-  o   => cosine
-);
+  --i   => sig_cos,
+  --o   => cosine
+--);
 
-END ARCHITECTURE rtl;
+--END ARCHITECTURE rtl;
 
 -------------------------------------------------------------------------------
 -- That could be driven further to 4 or even 8 phases, so that we could support
