@@ -13,7 +13,8 @@ extern "C" {
 }
 
 
-//#include "../pf_serial/include_tuw_slmaster/fixedpoint.h"
+#include "../pf_serial/include_tuw_slmaster/fixedpoint.h"
+#include "../pf_serial/include_tuw_slmaster/config.h"
 
 //lfsr uniform(864386345);
 
@@ -99,20 +100,17 @@ struct { int index; int podaci[3]; } msg[10000];
 void main(void)
 {
   
-  sio_setbaud(1500000);
+  sio_setbaud(COM_BAUDRATE);
 
   while(1) {
   int i = 0;
   while(!sync_serial()) { i++; };
 
- //eventPress();
   
   int count = 1500;
   
   for(int i=0; i<count; i++) {
-//    curcaller = 100;
     readstruct(msg[i]);
-    //if(i % 200 == 0) printf("!end!\n");
   }
  
   printf("Hello! %d\n",i);
