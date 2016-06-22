@@ -110,13 +110,13 @@ begin
     end if;
 	end process;
 	
-	fsin_ready <= '1' when wait_cycles = 0 or R_wait = wait_cycles else '0';
+	fsin_ready <= '1' when wait_cycles = 0 or R_wait = wait_cycles or bus_write = '1' else '0';
 
     --bus_out <= std_logic_vector(ftrig(fixed(R_x), false));
 
 	--bus_out <= "0000000000000000000000" & theta;
 	
-	bus_out <= std_logic_vector(sin) & x"0000";
+	bus_out <= std_logic_vector(shift_right( signed( std_logic_vector(sin) & x"0000" ), 32 - C_fracpart - 1));
 	
 	clken_sincos <= ce and bus_write;
 	
