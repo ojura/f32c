@@ -637,7 +637,7 @@ begin
     --
     process(imem_addr, dmem_addr, dmem_byte_sel, cpu_to_dmem, dmem_write,
       dmem_addr_strobe, imem_addr_strobe, fb_addr_strobe, fb_addr,
-      sram_ready, io_to_cpu, from_sram, lfsr_ready)
+      sram_ready, io_to_cpu, from_sram, lfsr_ready, gauss_ready, fsin_ready)
 	variable data_port, instr_port, fb_port, pcm_port: integer;
 	variable refresh_port: integer;
 	variable sram_data_strobe, sram_instr_strobe: std_logic;
