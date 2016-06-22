@@ -220,10 +220,27 @@ fixed inline ftrig(fixed x, bool cos = false) {
 }
 
 fixed inline fsin(fixed x) {
-  return ftrig(x, false); }
+    #ifdef PF_SLAVE
+    fixed r;
+    OUTW(IO_FSIN, x.val);
+    INW(r.val, IO_FSIN);  
+    return r;
+    #else
+    return fixed(sin(double(x)));
+    #endif
+}
 
 fixed inline fcos(fixed x) {
-  return ftrig(x, true); }
+    #ifdef PF_SLAVE
+    fixed r;
+    OUTW(IO_FSIN+4, x.val);
+    INW(r.val, IO_FSIN+4);  
+    return r;
+    #else
+    return fixed(cos(double(x)));
+    #endif
+}
+
     
 
 
@@ -287,14 +304,11 @@ struct gaussian_random{
     }
     
     inline fixed generate(fixed mi, fixed sigma) {
-#ifdef PF_SLAVE
-      int time, time2; RDTSC(time);
+#ifdef PF_SLAVE     
       fixed r;
       OUTW(IO_GAUSS+(2<<2), mi.val);
       OUTW(IO_GAUSS+(3<<2), sigma.val);    
       INW(r, IO_GAUSS);
-      RDTSC(time2);
-      printf("FPGA: Cycles used on gauss.generate(): %d\n", time2-time);
 #else
       
       int rands[4];
