@@ -204,18 +204,41 @@ signal addr_int : integer range 0 to 3;
 signal R_lfsr_write_counter: std_logic_vector(1 downto 0);
 
 signal R_arg_mean : fixed;
-signal R_arg_stdev : fixed;
+constant norm : fixed := to_signed(7094, 32);
+
+-- supported: 1 or 2. splitting to 2 stages raises fmax by 2 MHz
+-- but everything also works fine with 1
+constant wait_cycles : integer := 1; 
+
+signal R_wait : integer range 0 to wait_cycles;
+signal R_sum : fixed;
+signal R_out : fixed;
+
+signal R_mul1, R_mul2 : fixed;
+signal mul : signed(63 downto 0);
+signal ready : std_logic;
 
 begin
 
-	gauss_ready <= '1';
+	mul <= R_mul1 * R_mul2;
+	
+	ready <= '1' when wait_cycles = 0 or R_wait = wait_cycles else '0';
+	gauss_ready <= ready or bus_write;
 	
 	-- enable shifting all LFSRs when reading, enable only one when initializing
-	lfsr_ce <= lfsr_decoded when ce = '1' and addr = "01" and bus_write = '1' else "1111" when ce = '1' and bus_write ='0' else "0000";
+	lfsr_ce <= lfsr_decoded when ce = '1' and addr = "01" and bus_write = '1' 
+				else "1111" when ce = '1' and bus_write ='0' and ready = '1'
+				else "0000";
 
 	process(clk) 
+	variable uniforms : from_lfsr_array;
 	begin
-	if rising_edge(clk) then 
+	if rising_edge(clk) then
+		for i in 0 to C_num_lfsrs -1 loop
+			uniforms(i) := from_lfsr(i)(29) & from_lfsr(i)(29) & from_lfsr(i)(29 downto 0);
+		end loop;
+		R_sum <= signed(uniforms(0) + uniforms(1) + uniforms(2) + uniforms(3));
+	
 		if ce = '1' and bus_write = '1' then
 		-- write: 	addr = 00: reset init counter
 		--			addr = 01: write to current lfsr
@@ -223,13 +246,28 @@ begin
 		--			addr = 11: write stddev argument
 			case addr is
 				when "00" => R_lfsr_write_counter <= "00";
-				when "01" => R_lfsr_write_counter <= R_lfsr_write_counter + 1;
+				when "01" => R_lfsr_write_counter <= R_lfsr_write_counter + 1; 
 				when "10" => R_arg_mean <= fixed(bus_in);
-				when "11" => R_arg_stdev <= fixed(bus_in);
+				when "11" => R_mul1 <= norm; R_mul2 <= fixed(bus_in);
+							 R_wait <= 0;
 			end case;
-		end if;		
+		elsif R_wait = 0 then
+
+			R_mul1 <=  R_sum; -- R_sum
+			R_mul2 <= mul(31 + C_fracpart + 2 downto C_fracpart + 2); -- R_arg_stdev normalized
+
+			R_wait <= 1;
+		
+		elsif R_wait = 1 and wait_cycles = 2 then
+			R_wait <= 2;
+			R_out <= mul(31 + C_fracpart downto C_fracpart) + R_arg_mean;
+		end if;
+
 	end if;
 	end process;
+	
+	bus_out <=  std_logic_vector( R_out ) when wait_cycles = 2 else 
+				std_logic_vector( mul(31 + C_fracpart downto C_fracpart) + R_arg_mean);
 	
 	addr_int <= to_integer(unsigned(R_lfsr_write_counter));
 	
@@ -240,29 +278,6 @@ begin
 		lfsr_decoded_var( addr_int ) := '1';
 		lfsr_decoded <= lfsr_decoded_var;
 	end process;
-	
-	process(from_lfsr)
-	variable uniforms : from_lfsr_array;
-	variable sum : fixed;
-	-- norm: normalization constant which ensures stdev = 1  
-	constant norm : fixed := to_signed(7094, 32);
-	
-	variable r : signed(63 downto 0);
-	begin
-		for i in 0 to C_num_lfsrs -1 loop
-			uniforms(i) := from_lfsr(i)(29) & from_lfsr(i)(29) & from_lfsr(i)(29 downto 0);
-		end loop;	
-		sum := signed(uniforms(0) + uniforms(1) + uniforms(2) + uniforms(3));
-		--r = r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi; 
-		
-		r :=  (R_arg_stdev * norm);
-		r := sum * r(31 + C_fracpart + 2 downto C_fracpart + 2);
-		
-		bus_out <= std_logic_vector( r(31 + C_fracpart downto C_fracpart) + R_arg_mean );
-
-		
-	end process;
-
 
    I_lfsrs: for i in 0 to C_num_lfsrs-1 generate
    begin
