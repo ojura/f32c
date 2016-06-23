@@ -83,7 +83,7 @@ architecture x of fsin is
 	
 	signal sin : signed( 15 downto 0);
 	
-	constant wait_cycles : integer := 0; 
+	constant wait_cycles : integer := 2; 
 	
 	signal R_wait : integer range 0 to wait_cycles;
 begin
@@ -105,12 +105,12 @@ begin
 				R_theta <= theta_cos;
 			end if;
 			
-			if wait_cycles > 0 then R_wait <= 0; end if;
+			R_wait <= 0;
 		end if;
     end if;
 	end process;
 	
-	fsin_ready <= '1' when wait_cycles = 0 or R_wait = wait_cycles or bus_write = '1' else '0';
+	fsin_ready <= '1' when wait_cycles = 0 or R_wait >= 1 or bus_write = '1' else '0';
 
     --bus_out <= std_logic_vector(ftrig(fixed(R_x), false));
 
@@ -122,7 +122,7 @@ begin
 	
 -- parameterized module component instance
    I_sincos: entity work.sintab
-	 generic map ( pipestages => 0 )
+	 generic map ( pipestages => 1 )
      port map (clk=>clk, theta=> unsigned(R_theta), sine=>sin);
 	
 end x;

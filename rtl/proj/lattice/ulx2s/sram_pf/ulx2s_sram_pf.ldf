@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<BaliProject version="3.2" title="ulx2s_sram_pf" device="LFXP2-8E-6TN144C" default_implementation="impl1">
+<BaliProject version="3.2" title="ulx2s_sram_pf" device="LFXP2-5E-6TN144C" default_implementation="impl1">
     <Options/>
     <Implementation title="impl1" dir="impl1" description="ulx2s_sram_pf" synthesis="synplify" default_strategy="Timing">
         <Options def_top="glue"/>

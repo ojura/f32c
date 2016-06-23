@@ -29,7 +29,6 @@ static const char *arch = "unknown";
 
 #define	BTN_ANY	(BTN_CENTER | BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT)
 
-#define IO_FSIN IO_ADDR(0x5A0)
 
 
 ////////////////
@@ -67,14 +66,13 @@ inline void eventClick() {
 lfsr lfsrs[4];
 gaussian_random gauss;
 
+fixed hw[41], arg[41];
+
 void dbg(int i) {
     fixed a = fixed(i*0.1*M_PI);
     fixed r;
     printf("SW sin %lf %lf\n", double(i * 0.1), double(cos(double(a))));
-    //printf("SW fsin %lf %lf\n", double(i*0.1), double(fsin(a)));
-    OUTW(IO_FSIN+4, a.val);
-    INW(r.val, IO_FSIN+4);
-    printf("HW %lf %lf\n",  double(i*0.1), r.val / double( pow(2.0, 31) ) );
+    printf("HW %lf %lf\n",  double(i*0.1), double( fcos(a) ) );
 }
 
 
@@ -86,10 +84,21 @@ main(void)
   sio_setbaud(COM_BAUDRATE);
   printf("!Hello, f32c/%s world!\n", arch);
 
-  for(int i = -21; i < 21; i++) { 
-    dbg(i);
+
+  for(int i = -20; i < 21; i++) { 
+    arg[i+20] = fixed(i*0.1*M_PI);
+  }  
+  
+  for(int i = -20; i < 21; i++) { 
+    hw[i+20] = fcos(arg[i+20]);
+  }
+  for(int i = -20; i < 21; i++) { 
+     printf("SW sin %lf %lf\n", double(i * 0.1), double(cos(double(arg[i+20]))));
+     printf("HW %lf %lf\n",  double(i*0.1), double( hw[i+20] ) );
     printf("-----------------\n");
   }
+  
+  
   for (int j = 0; j < 4; j++)
     dbg(10);
     
