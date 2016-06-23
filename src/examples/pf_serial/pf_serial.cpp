@@ -453,8 +453,15 @@ void main(void)
         //#undef member  
         
         if ( msg_params.enable_resample ) resample();
+        int time, time2; 
+        RDTSC(time);
         if ( msg_params.enable_update ) update();
+        RDTSC(time2);
+        printf("FPGA: Cycles used on update(): %d\n", time2-time);
+        RDTSC(time);
         if ( msg_params.enable_weighting ) weighting();
+        RDTSC(time2);
+        printf("FPGA: Cycles used on weighting(): %d\n", time2-time);
         
         printf("!end!\n");
         
