@@ -12,6 +12,9 @@
   #include <dev/io.h>
   #define IO_GAUSS IO_ADDR(0x590)
   #define IO_FSIN IO_ADDR(0x5A0)
+  #define HW_GAUSS
+  #define HW_FSIN
+  
 #endif
 
 // valid baudrates: 3000000, 2500000, 2000000, 1500000, 1152000, 1000000,

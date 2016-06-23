@@ -219,27 +219,32 @@ fixed inline ftrig(fixed x, bool cos = false) {
     return y >> (2*shift1+1);
 }
 
-fixed inline fsin(fixed x) {
-    #ifdef PF_SLAVE
+#if defined(PF_SLAVE) && defined(HW_FSIN) 
+fixed inline fsin(fixed x) {   
     fixed r;
     OUTW(IO_FSIN, x.val);
     INW(r.val, IO_FSIN);  
     return r;
-    #else
-    return fixed(sin(double(x)));
-    #endif
 }
 
 fixed inline fcos(fixed x) {
-    #ifdef PF_SLAVE
     fixed r;
     OUTW(IO_FSIN+4, x.val);
     INW(r.val, IO_FSIN+4);  
     return r;
-    #else
-    return fixed(cos(double(x)));
-    #endif
 }
+
+#else
+fixed inline fsin(fixed x) {
+    //return fixed(sin(double(x)));
+    return ftrig(x, false);
+}
+
+fixed inline fcos(fixed x) {
+    //return fixed(cos(double(x)));
+    return ftrig(x, true);
+}
+#endif
 
     
 
@@ -272,12 +277,8 @@ struct lfsr {
 
 struct gaussian_random{
   
-    #ifndef PF_SLAVE
-    lfsr lfsrs[4];
-    #endif
-  
+    #if defined(PF_SLAVE) && defined(HW_GAUSS)
     gaussian_random() {      
-      #ifdef PF_SLAVE
       // reset lfsr init counter
       OUTW(IO_GAUSS, 0x0);
       // init LFSRs
@@ -291,26 +292,32 @@ struct gaussian_random{
       if( generate(fixed(0), fixed(1)).val != (signed int) 0xfffac301 ) {
           printf("HW Gauss is not working properly!\n");
           while(true) { };
-      }
+      } 
+    }
+    
+    inline fixed generate(fixed mi, fixed sigma) {
+      fixed r;
+      OUTW(IO_GAUSS+(2<<2), mi.val);
+      OUTW(IO_GAUSS+(3<<2), sigma.val);    
+      INW(r, IO_GAUSS);
 
-      #else
+      return r;
+    }
+    
+    #else
+  
+    lfsr lfsrs[4];
+  
+    gaussian_random() {      
       // software implementation
       lfsrs[0] = 0x2996EF15;
       lfsrs[1] = 0x70630F8F;
       lfsrs[2] = 0x59C2ED18;
       lfsrs[3] = 0x291945; 
-      #endif
-        
+       
     }
     
-    inline fixed generate(fixed mi, fixed sigma) {
-#ifdef PF_SLAVE     
-      fixed r;
-      OUTW(IO_GAUSS+(2<<2), mi.val);
-      OUTW(IO_GAUSS+(3<<2), sigma.val);    
-      INW(r, IO_GAUSS);
-#else
-      
+    inline fixed generate(fixed mi, fixed sigma) {    
       int rands[4];
       int sum = 0;
       for(int i = 0; i<4; i++) {
@@ -325,10 +332,11 @@ struct gaussian_random{
       r.val = sum;
       
       r = r * ((fixed(sigma << 2) * fixed( 1/(6.1993e+08 / (1<<FIXED_FRACPART)) * (1<<2))) >> 4) + mi;
-#endif
 
       return r;
     }
+    
+    #endif
     
 };
 
