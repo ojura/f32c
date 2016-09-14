@@ -299,7 +299,7 @@ struct gaussian_random{
       fixed r;
       OUTW(IO_GAUSS+(2<<2), mi.val);
       OUTW(IO_GAUSS+(3<<2), sigma.val);    
-      INW(r, IO_GAUSS);
+      INW(r.val, IO_GAUSS);
 
       return r;
     }
