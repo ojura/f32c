@@ -382,12 +382,20 @@ void ParticleFilter::plotData ( Figure &figure_map ) {
     * plot the likelihood_field_ into figure_map.background()
     **/
 
+    float maximum = 0;
+    for ( int r = 0; r < likelihood_field_.rows; r++ ) {
+        for ( int c = 0; c < likelihood_field_.cols; c++ ) {
+	    if(likelihood_field_ (r,c) > maximum) maximum = likelihood_field_ (r,c);
+        }
+    }
+
+
     for ( int r = 0; r < likelihood_field_.rows; r++ ) {
         for ( int c = 0; c < likelihood_field_.cols; c++ ) {
             auto &ref = figure_map.background();
             cv::Vec3b &color = ref.at<cv::Vec3b>(r,c);
 
-            uint8_t intensity = 255*likelihood_field_ (r,c);
+            uint8_t intensity = 255*likelihood_field_ (r,c)/maximum;
             color[2] = 255 - intensity;
             //color[1] = intensity;
 
