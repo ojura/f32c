@@ -14,6 +14,7 @@
 #include <tuw_self_localization/KalmanFilterConfig.h>
 #include <tuw_self_localization/SelfLocalizationConfig.h>
 #include <tuw_self_localization/tuw_self_localization.h>
+#include <string>
 /**
  * class to cover the ros communication for the self-localization
  **/
@@ -33,6 +34,9 @@ private:
     ros::Publisher pub_pose_estimated_; /// publisher for the estimated pose
     std::shared_ptr<tf::TransformListener> tf_listener_;  /// listener to receive transformation messages -> to get the laser pose
     geometry_msgs::PoseWithCovarianceStamped pose_; /// pose to publish with covariance
+
+    std::string frame_id_base_, frame_id_laser_;
+
     void callbackCmd ( const geometry_msgs::Twist& ); /// callback function to catch motion commands
     void callbackOdometry ( const nav_msgs::Odometry& ); /// callback function to catch odometry messages
     void callbackGroundTruth ( const nav_msgs::Odometry& ); /// callback function to catch  ground truth pose messages

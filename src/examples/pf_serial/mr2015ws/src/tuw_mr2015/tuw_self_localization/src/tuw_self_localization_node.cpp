@@ -66,10 +66,14 @@ SelfLocalizationNode::SelfLocalizationNode ( ros::NodeHandle & n )
         ROS_ERROR ( "map_lines file does not exist: %s", filename_map_lines_.c_str() );
         return;
     }
-    /// subscribes to transforamtions
+    /// subscribes to transformations
     tf_listener_ = std::make_shared<tf::TransformListener>();
 
     n_param_.param<std::string> ( "frame_id_map", pose_.header.frame_id, "map" );
+
+    n_param_.param<std::string> ("frame_id_base", frame_id_base_, "base_link" );
+    n_param_.param<std::string> ("frame_id_laser", frame_id_laser_, "base_laser_link" );
+
 
     /// subscribes to  odometry values
     sub_cmd_ = n.subscribe ( "cmd", 1, &SelfLocalizationNode::callbackCmd, this );
@@ -156,8 +160,9 @@ void SelfLocalizationNode::callbackLaser ( const sensor_msgs::LaserScan &_laser 
     
     try{
       tf::TransformListener listener;
-      listener.waitForTransform("/base_link", "/base_laser_link", ros::Time(0), ros::Duration(4.0));
-      listener.lookupTransform("/base_link", "/base_laser_link", ros::Time(0), transform);
+
+      listener.waitForTransform(frame_id_base_, frame_id_laser_, ros::Time(0), ros::Duration(4.0));
+      listener.lookupTransform(frame_id_base_, frame_id_laser_, ros::Time(0), transform);
        }
        catch (tf::TransformException &ex) {
          ROS_ERROR("%s",ex.what());
