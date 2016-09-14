@@ -331,21 +331,21 @@ void update() {
     msgtype_sample &s = samples_mem[i];
     
     fixed v = msg_frame_data.v, w = msg_frame_data.w;
-    fixed fv_w = v * w.inv();
+ 
     
-    fixed fv = gauss.generate(fixed(v), fixed(msg_params.alpha1*v*v + msg_params.alpha2*w*w));
-    fixed fw = gauss.generate(fixed(w), fixed(msg_params.alpha3*v*v + msg_params.alpha4*w*w));
-    fixed fgamma = gauss.generate(fixed(0), fixed(msg_params.alpha5*v*v + msg_params.alpha6*w*w));
-    
-    
-    if(w > fixed(0.05) || w < fixed(-0.05)) {
+    fixed fv = gauss.generate(v, msg_params.alpha1*v*v + msg_params.alpha2*w*w);
+    fixed fw = gauss.generate(w, msg_params.alpha3*v*v + msg_params.alpha4*w*w);
+    fixed fgamma = gauss.generate(fixed(0), msg_params.alpha5*v*v + msg_params.alpha6*w*w);
+        
+    if(fw > fixed(0.05) || fw < fixed(-0.05)) {
+	  fixed fv_w = fv * fw.inv();
       s.x = s.x + fv_w * (  - (fsin(s.theta)) + (fsin(s.theta + fw * dt))  );
       s.y = s.y + fv_w * (    (fcos(s.theta)) - (fcos(s.theta + fw * dt)) );
     } else {
       s.x = s.x  + fv * dt * (fcos(s.theta));
       s.y = s.y  + fv * dt * (fsin(s.theta));
     }
-    s.theta = s.theta + fw * dt + fgamma;
+    s.theta = s.theta + fw * dt + fgamma * dt;
     
   }
   
