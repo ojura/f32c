@@ -91,8 +91,8 @@ void SelfLocalization::plotMap() {
     figure_map_.clear();
     char text[0xFF];
 
-    cv::Matx33d M = pose_ground_truth_.tf();
-
+//    cv::Matx33d M = pose_ground_truth_.tf();
+      cv::Matx33d M = pose_estimated_.tf();
     
     for ( size_t i = 0; i < measurement_laser_->size(); i++ ) {
 	/**
@@ -118,8 +118,8 @@ void SelfLocalization::plotMap() {
     * @ToDo Put your name into the figure
     **/ 
     
-    figure_map_.symbol ( odom_, 0.2, Figure::cyan, 1 );
-    figure_map_.symbol ( pose_ground_truth_, 0.2, Figure::orange, 1 );
+//    figure_map_.symbol ( odom_, 0.2, Figure::cyan, 1 );
+//    figure_map_.symbol ( pose_ground_truth_, 0.2, Figure::orange, 1 );
     
     if(dragging) figure_map_.symbol( wp,0.15, cv::Scalar(0,0,255));
     
