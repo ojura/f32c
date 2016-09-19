@@ -130,7 +130,7 @@ void SelfLocalization::plotMap() {
 
 void SelfLocalization::localization () {
     if ( measurement_laser_->empty() ) return;
-    pose_estimated_ = pose_filter_->localization ( cmd_, ( MeasurementPtr ) measurement_laser_ );
+    pose_estimated_ = pose_filter_->localization ( odom_twist_, ( MeasurementPtr ) measurement_laser_ );
     loop_count_++;
 }
 

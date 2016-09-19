@@ -198,6 +198,9 @@ void SelfLocalizationNode::callbackOdometry ( const nav_msgs::Odometry &odom ) {
     tf::Matrix3x3 ( q ).getRPY ( roll, pitch, yaw );
     double a = yaw;
     odom_.set ( odom.pose.pose.position.x, odom.pose.pose.position.y, a );
+
+    odom_twist_.v() = odom.twist.twist.linear.x;
+    odom_twist_.w() = odom.twist.twist.angular.z;
 }
 
 /**

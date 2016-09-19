@@ -29,6 +29,7 @@ protected:
     std::string filename_map_lines_;
     Point2D mouse_on_map_;
     Pose2D odom_;               /// State x, y, alpha
+    Command odom_twist_;
     Pose2D pose_ground_truth_;  /// State x, y, alpha
     Pose2D pose_estimated_;     /// State x, y, alpha
     Command cmd_;               /// output variables  v, w
