@@ -509,7 +509,7 @@ void ParticleFilter::loadMap ( int width_pixel, int height_pixel, double min_x, 
     uniform_distribution_y_ = std::uniform_real_distribution<double> ( min_y_, max_y_ );
     uniform_distribution_theta_ = std::uniform_real_distribution<double> ( -M_PI, M_PI );
 
-    updateLikelihoodField ();
+    // updateLikelihoodField (); // wrong to call updateLikelihoodField here - PF is not yet initialized
 
 }
 
