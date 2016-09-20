@@ -128,7 +128,7 @@ void LocalPlanner::ai_wanderer() {
     if(danger_left == 0 && max_angle > pi/30 && max_dist > measurement_laser_[measurement_laser_.size()/2].length + 0.5) cmd_.set(0.1, 0.5);
     else if(danger_right == 0 && max_angle < -pi/30 && max_dist > measurement_laser_[measurement_laser_.size()/2].length + 0.5 ) cmd_.set(0.1, -0.5);
     // straight line mode (hysteresis active), plus collision avoidance
-    else cmd_.set(0.7 - abs(danger_left + danger_right),danger_left+danger_right);
+    else cmd_.set(0.7 - fabs(danger_left + danger_right),danger_left+danger_right);
 
     
 }
