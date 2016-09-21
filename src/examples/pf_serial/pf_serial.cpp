@@ -125,13 +125,11 @@ template<class msg> void sendstruct(msg& m) {
 // distance-transformed map is stored in heap 
 unsigned char *map_mem = nullptr;
 unsigned int map_size;
-// TODO: making map size dynamic.
-unsigned int mapx = 558; unsigned int mapy = 558;
 
 
 // 2D array-like function for accessing map value at pixel coordinates c,r
 unsigned char& map(int y, int x) {
-  return *(map_mem + x + y * mapx);    
+  return *(map_mem + x + y * msg_params.map_x);    
 }
 
 
@@ -297,7 +295,7 @@ void weighting () {
         + ftf[1][1]*stf[1][0]) + ztf[1][2]*(ftf[1][0]*stf[0][1] + ftf[1][1]*stf[1][1]));
         
         
-        if (rx>=0 && rx < (int) mapx && ry >= 0  && ry < (int) mapy) {
+        if (rx>=0 && rx < (int) msg_params.map_x && ry >= 0  && ry < (int) msg_params.map_y) {
           s.weight = s.weight * msg_params.likelihoodLookup.gausspdf[map(ry, rx)];
         }
         else {

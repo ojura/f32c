@@ -34,6 +34,8 @@ struct string_30 {
     member(fixed, resample_rate, fixed(config_.resample_rate) ); \
     member(likelihoodLookupTable, likelihoodLookup, currentlikelihoodLookupTable); \
     member(string_30, FPGAmap, map_name ); \
+    member(int, map_x, width_pixel_ ); \
+    member(int, map_y, height_pixel_ ); \
     member(fixed33mat, map_tf, ftf_);
 
 //     member(fixed, z_hit, fixed(config_.z_hit)); 
