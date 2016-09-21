@@ -156,18 +156,23 @@ void SelfLocalizationNode::callbackLaser ( const sensor_msgs::LaserScan &_laser 
      **/ 
    //measurement_laser_->tf() = Pose2D ( 0.225,  0, 0).tf();  /// to remove
     
-    
-    
-    try{
-      tf::TransformListener listener;
 
-      listener.waitForTransform(frame_id_base_, frame_id_laser_, ros::Time(0), ros::Duration(4.0));
-      listener.lookupTransform(frame_id_base_, frame_id_laser_, ros::Time(0), transform);
-       }
-       catch (tf::TransformException &ex) {
-         ROS_ERROR("%s",ex.what());
-         ros::Duration(1.0).sleep();
-       }
+    // get base->laser transform only once, it can be assumed it's static on a Pioneer mobile robot
+    static bool got_transform = false;
+
+    if(!got_transform) {
+        try {
+            tf::TransformListener listener;
+
+            listener.waitForTransform(frame_id_base_, frame_id_laser_, ros::Time(0), ros::Duration(4.0));
+            listener.lookupTransform(frame_id_base_, frame_id_laser_, ros::Time(0), transform);
+            got_transform = true;
+        }
+        catch (tf::TransformException &ex) {
+            ROS_ERROR("%s", ex.what());
+            ros::Duration(1.0).sleep();
+        }
+    }
     
     
     double yaw, pitch, roll;
