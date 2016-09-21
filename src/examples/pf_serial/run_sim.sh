@@ -13,4 +13,4 @@ cd mr2015ws
 source /opt/ros/kinetic/setup.bash
 source devel/setup.bash
 
-roslaunch tuw_local_planner planner.launch stage:=1 world:=cave mode:=2 &
+roslaunch tuw_local_planner planner.launch stage:=1 world:=cave mode:=2
