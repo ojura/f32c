@@ -363,9 +363,9 @@ void main(void)
   
   int f = open("d:likelihood.map", O_RDONLY);
   
-  if(f == 0) {
-    printf("FPGA: Could not open likelihood.map!\n"); 
-    return;
+  if(f == -1) {
+    while(1) 
+	printf("FPGA: Fatal error: could not open likelihood.map!\n"); 
   }
   
   map_size = lseek(f, 0, SEEK_END);
@@ -373,8 +373,8 @@ void main(void)
   map_mem = (unsigned char*) malloc(map_size);
   
   if(map_mem == NULL)  {
-    printf("FPGA: Could not allocate memory for map!\n");
-    return;
+  while(1) 
+    printf("FPGA: Fatal error: Could not allocate memory for map!\n");
   }
   
   
