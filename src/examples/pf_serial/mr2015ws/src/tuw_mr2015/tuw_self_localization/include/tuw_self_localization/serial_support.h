@@ -42,7 +42,7 @@ inline void sendFPGAstruct(msg m) {
         i += (sentcount == -1) ? 0 : sentcount;
         if(i < sizeof(m)) usleep(WRITETIMEOUT);
     }
-    if(cnt > 1) std::cout << "send: waited " << cnt << "times" << std::endl;
+    //if(cnt > 1) std::cout << "send: waited " << cnt << " times" << std::endl;
 }
 
 template<class msg>
@@ -53,7 +53,7 @@ inline void readFPGAstruct(msg &m) {
         i += RS232_PollComport(cport_nr, (unsigned char *) &m + i, sizeof(m) - i);
         if(i < sizeof(m)) usleep(READTIMEOUT);
     }
-    if(cnt > 1) std::cout << "read: waited " << cnt << "times" << std::endl;
+    //if(cnt > 1) std::cout << "read: waited " << cnt << " times" << std::endl;
 }
 
 inline void sendFPGAstring(const char *m) {
