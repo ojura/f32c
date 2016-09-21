@@ -59,7 +59,7 @@ struct fixed {
     }
     
     
-    inline fixed operator -() {
+    inline fixed operator -() const {
         fixed r; r.val = -val; return r; 
     }
     

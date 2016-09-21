@@ -21,6 +21,7 @@ extern "C" {
 
 gaussian_random gauss;
 
+int initial_resample_counter=20;
 
 ////////////////
 // debouncing for button inputs
@@ -433,17 +434,30 @@ void main(void)
         //com_measurement;
         //#undef member  
         
-        if ( msg_params.enable_resample ) resample();
-        int time, time2; 
-        RDTSC(time);
-        if ( msg_params.enable_update ) update();
-        RDTSC(time2);
-        printf("FPGA: Cycles used on update(): %d\n", time2-time);
-        RDTSC(time);
-        if ( msg_params.enable_weighting ) weighting();
-        RDTSC(time2);
-        printf("FPGA: Cycles used on weighting(): %d\n", time2-time);
-        
+        const fixed v_resample_threshold = fixed(0.05), w_resample_threshold = fixed(0.01);
+        bool moving = msg_frame_data.v > v_resample_threshold
+          || msg_frame_data.v < -v_resample_threshold || msg_frame_data.w > w_resample_threshold
+          || msg_frame_data.w < -w_resample_threshold;
+
+        if (msg_params.enable_resample && (initial_resample_counter-- > 0 || moving))  {
+          if(moving && initial_resample_counter < 4) initial_resample_counter = 4;
+          resample();
+          printf("FPGA: Resampling...\n");
+
+          int time, time2; 
+          RDTSC(time);
+          if ( msg_params.enable_update ) update();
+          RDTSC(time2);
+          printf("FPGA: Cycles used on update(): %d\n", time2-time);
+          RDTSC(time);
+          if ( msg_params.enable_weighting ) weighting();
+          RDTSC(time2);
+          printf("FPGA: Cycles used on weighting(): %d\n", time2-time);
+        } 
+        else
+            printf("FPGA: Skipping resampling since the robot is stationary...\n");
+    
+    
         printf("!end!\n");
         
         
@@ -540,7 +554,8 @@ void main(void)
         readstruct(samples_mem[i]);
       }
       used_samples = msg_params.nr_of_samples;
-      
+      initial_resample_counter = 20;      
+
       printf("FPGA: Received data of the first sample: \n");
       
       #define member(t,x,y) printf("FPGA: " #t " " #x " = "); print(samples_mem[0].x); printf("\n")
