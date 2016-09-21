@@ -35,6 +35,9 @@ int main ( int argc, char **argv ) {
     return 0;
 }
 
+
+
+
 /**
  * Constructor
  **/
@@ -46,7 +49,10 @@ SelfLocalizationNode::SelfLocalizationNode ( ros::NodeHandle & n )
     // reads shared parameter on the operation mode
     int mode;
     n_param_.getParam ( "mode", mode );
-    if ( mode == PoseFilter::PARTICLE_FILTER ) pose_filter_ = std::make_shared<tuw::ParticleFilter>();
+
+    n_param_.param<std::string> ("export_likelihood_mapfile", export_likelihood_mapfile_, "");
+
+    if ( mode == PoseFilter::PARTICLE_FILTER ) pose_filter_ = std::make_shared<tuw::ParticleFilter>(export_likelihood_mapfile_);
     if ( mode == PoseFilter::KALMAN_FILTER )   pose_filter_ = std::make_shared<tuw::KalmanFilter>();
 
     ROS_INFO ( "mode: %s(%i)", pose_filter_->getTypeName().c_str(), ( int ) pose_filter_->getType() );
@@ -73,7 +79,6 @@ SelfLocalizationNode::SelfLocalizationNode ( ros::NodeHandle & n )
 
     n_param_.param<std::string> ("frame_id_base", frame_id_base_, "base_link" );
     n_param_.param<std::string> ("frame_id_laser", frame_id_laser_, "base_laser_link" );
-
 
     /// subscribes to  odometry values
     sub_cmd_ = n.subscribe ( "cmd", 1, &SelfLocalizationNode::callbackCmd, this );
@@ -125,6 +130,10 @@ void SelfLocalizationNode::callbackConfigSelfLocalization ( tuw_self_localizatio
 void SelfLocalizationNode::callbackConfigParticleFilter ( tuw_self_localization::ParticleFilterConfig &config, uint32_t level ) {
     ROS_INFO ( "callbackConfigParticleFilter!" );
     pose_filter_->setConfig ( &config );
+
+    // if we only had to export the map, we can now shutdown
+    if (export_likelihood_mapfile_ != "")
+        ros::shutdown();
 }
 
 void SelfLocalizationNode::callbackConfigKalmanFilter ( tuw_self_localization::KalmanFilterConfig &config, uint32_t level ) {

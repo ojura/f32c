@@ -21,7 +21,7 @@
 class SelfLocalizationNode : public tuw::SelfLocalization {
 public:
     SelfLocalizationNode ( ros::NodeHandle & n ); /// Constructor
-    void localization();            /// tiggers the self-localization process
+    void localization();            /// triggers the self-localization process
     void publishPoseEstimated ();   /// publishes the estimated pose
 private:
     ros::NodeHandle n_;             /// node handler to the root node
@@ -36,6 +36,8 @@ private:
     geometry_msgs::PoseWithCovarianceStamped pose_; /// pose to publish with covariance
 
     std::string frame_id_base_, frame_id_laser_;
+
+    std::string export_likelihood_mapfile_;
 
     void callbackCmd ( const geometry_msgs::Twist& ); /// callback function to catch motion commands
     void callbackOdometry ( const nav_msgs::Odometry& ); /// callback function to catch odometry messages

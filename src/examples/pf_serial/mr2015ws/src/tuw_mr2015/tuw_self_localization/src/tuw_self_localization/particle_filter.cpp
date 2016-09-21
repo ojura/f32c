@@ -28,9 +28,10 @@ std::uniform_real_distribution<double> ParticleFilter::uniform_distribution_y_;
 std::uniform_real_distribution<double> ParticleFilter::uniform_distribution_theta_;
 std::normal_distribution<double> ParticleFilter::normal_distribution_;
 
-ParticleFilter::ParticleFilter() :PoseFilter ( PARTICLE_FILTER ) {
+ParticleFilter::ParticleFilter(std::string export_likelihood_mapfile) :PoseFilter ( PARTICLE_FILTER ) {
     normal_distribution_ = std::normal_distribution<double> ();
     sigma_likelihood_field_ = 1.0;
+    export_likelihood_mapfile_ = export_likelihood_mapfile;
 }
 SamplePtr& ParticleFilter::normal ( SamplePtr &sample, const Pose2D &mean, double sigma_position, double sigma_orientation ) const {
     sample->set ( mean.x() + normal_distribution_ ( generator_ ) * sigma_position, mean.y() + normal_distribution_ ( generator_ ) * sigma_position, mean.theta() + normal_distribution_ ( generator_ ) * sigma_orientation );
@@ -360,7 +361,6 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
 #else
 Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPtr &z ) {
     if ( updateTimestamp ( z->stamp() ) ) {
-        updateLikelihoodField ();
         if ( reset_ ) init();
         if ( config_.enable_resample ) resample();
         if ( config_.enable_update ) update ( u );
@@ -537,6 +537,7 @@ void ParticleFilter::updateLikelihoodField () {
 #endif
 
 
+
     if ( sigma_likelihood_field_ == config_.sigma_hit ) return;
     sigma_likelihood_field_ = config_.sigma_hit;
     boost::math::normal normal_likelihood_field = boost::math::normal ( 0, config_.sigma_hit );
@@ -548,16 +549,20 @@ void ParticleFilter::updateLikelihoodField () {
     cv::distanceTransform(map_, distance_field_pixel_, CV_DIST_L2,CV_DIST_MASK_PRECISE);
     distance_field_ =  distance_field_pixel_;
 
-    // TODO make a separate binary packed likelihood (distance) map export utility
-    // std::ofstream lmap("/home/juraj/lmap.map", std::ios::binary);
-    for ( int r = 0; r < likelihood_field_.rows; r++ ) {
-        for ( int c = 0; c < likelihood_field_.cols; c++ ) {
-            float g =  distance_field_(r,c);
-            float f = boost::math::pdf(normal_likelihood_field, g/scale_ );
-            likelihood_field_(r,c) = f;
-            //char ff = distance_field_pixel_(r,c);
 
-            //lmap.write(&ff, sizeof(ff));
+    std::ofstream lmap;
+    if(export_likelihood_mapfile_ != "")
+        lmap = std::ofstream(export_likelihood_mapfile_, std::ios::binary);
+
+    for (int r = 0; r < likelihood_field_.rows; r++) {
+        for (int c = 0; c < likelihood_field_.cols; c++) {
+            float g = distance_field_(r, c);
+            float f = boost::math::pdf(normal_likelihood_field, g / scale_);
+            likelihood_field_(r, c) = f;
+            char ff = distance_field_pixel_(r,c);
+
+            if(export_likelihood_mapfile_ != "")
+                lmap.write(&ff, sizeof(ff));
         }
     }
 }

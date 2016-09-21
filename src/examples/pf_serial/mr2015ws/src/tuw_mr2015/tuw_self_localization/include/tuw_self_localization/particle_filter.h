@@ -24,7 +24,8 @@ public:
     /**
      * Constructor
      **/
-    ParticleFilter();;
+    ParticleFilter(std::string export_likelihood_mapfile = std::string(""));
+
     /**
      * used to plot debug data into a map
      * @param figure_map 
@@ -147,6 +148,7 @@ private:
     cv::Mat_<float> distance_field_;              /// distance field in meters
     cv::Mat_<float> likelihood_field_;            /// computed likelihood field
     tuw_self_localization::ParticleFilterConfig config_;  /// parameters
+    std::string export_likelihood_mapfile_;
 };
 };
 
