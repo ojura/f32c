@@ -98,6 +98,9 @@ void print(fixed33mat &a) {
   }
   printf("]");
 }
+void print(string_30 &a) {
+  printf("%s", a.string);
+}
 
 
 // generic function for reading a struct via serial link from master
@@ -361,30 +364,10 @@ void main(void)
   
   sio_setbaud(COM_BAUDRATE);
   
-  int f = open("d:likelihood.map", O_RDONLY);
-  
-  if(f == -1) {
-    while(1) 
-	printf("FPGA: Fatal error: could not open likelihood.map!\n"); 
-  }
-  
-  map_size = lseek(f, 0, SEEK_END);
-  
-  map_mem = (unsigned char*) malloc(map_size);
-  
-  if(map_mem == NULL)  {
-  while(1) 
-    printf("FPGA: Fatal error: Could not allocate memory for map!\n");
-  }
-  
-  
-  lseek(f, 0, SEEK_SET);
-  
-  read(f, map_mem, map_size);
-  
-  // TODO: read map dimensions from file  
-  printf("FPGA: Read likelihood.map, handle %d, size %u\n", f, map_size);
-  
+  int file_handle;
+
+  string_30 opened_file; opened_file.string[0] = '\0';
+ 
   while(1) {
     
     char ctmp[5]; ctmp[4] = '\0';
@@ -493,7 +476,40 @@ void main(void)
       #define member(t,x,y) printf("FPGA: " #t " " #x " = "); print(msg_params.x); printf("\n")
       com_params;
       #undef member
-      
+
+      // handle opening map file
+      if(strcmp(opened_file.string, msg_params.FPGAmap.string) != 0) {
+        
+        // free memory if a file has been previously read
+        if(opened_file.string[0] != '\0')
+          free(map_mem);
+
+        file_handle = open(msg_params.FPGAmap.string, O_RDONLY);
+        memcpy(opened_file.string, msg_params.FPGAmap.string, sizeof(string_30));
+
+        if(file_handle == -1) {
+          while(1) 
+            printf("FPGA: Fatal error: could not open %s!\n", msg_params.FPGAmap.string); 
+        }
+
+        map_size = lseek(file_handle, 0, SEEK_END);
+
+        map_mem = (unsigned char*) malloc(map_size);
+
+        if(map_mem == NULL)  {
+          while(1) 
+            printf("FPGA: Fatal error: Could not allocate memory for map!\n");
+        }
+
+
+        lseek(file_handle, 0, SEEK_SET);
+        read(file_handle, map_mem, map_size);
+        close(file_handle);
+
+        // TODO: read map dimensions from file  
+        printf("FPGA: Read likelihood.map, handle %d, size %u\n", file_handle, map_size);
+      }
+          
       if(msg_params.nr_of_samples != allocated_samples) {
         samples_mem = (msgtype_sample*) realloc(samples_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);
         samples_new_mem = (msgtype_sample*) realloc(samples_new_mem, sizeof(msgtype_sample) * msg_params.nr_of_samples);

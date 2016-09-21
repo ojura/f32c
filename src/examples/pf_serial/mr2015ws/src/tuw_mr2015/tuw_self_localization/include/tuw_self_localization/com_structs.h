@@ -7,6 +7,10 @@ struct likelihoodLookupTable {
     fixed gausspdf[256];    
 };
 
+struct string_30 {
+    char string[30];
+};
+
 // in order to avoid specifying communication structs twice (struct definition and loading values) in both ROS node/FPGA slave code,
 // following macro hack is used for both: member(type, member name, variable containing value to be loaded when sending)
 #define com_params \
@@ -29,8 +33,9 @@ struct likelihoodLookupTable {
     member(int, resample_strategy, config_.resample_strategy); \
     member(fixed, resample_rate, fixed(config_.resample_rate) ); \
     member(likelihoodLookupTable, likelihoodLookup, currentlikelihoodLookupTable); \
+    member(string_30, FPGAmap, map_name ); \
     member(fixed33mat, map_tf, ftf_);
-    
+
 //     member(fixed, z_hit, fixed(config_.z_hit)); 
 //     member(fixed, z_rand_over_max, fixed(config_.z_rand/config_.z_max));
 //     

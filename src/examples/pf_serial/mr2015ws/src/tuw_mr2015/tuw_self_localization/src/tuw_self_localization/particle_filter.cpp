@@ -236,6 +236,10 @@ Pose2D ParticleFilter::localization ( const Command &u, const MeasurementConstPt
         }
 
         if(FPGA_params_outofdate) {
+
+            string_30 map_name; map_name.string[29] = '\0';
+            strncpy(map_name.string, config_.fpga_map_file.c_str(), 30);
+
 #define member(t,x,y) msg_params.x = y
             com_params;
 #undef member
